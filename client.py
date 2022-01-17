@@ -8,20 +8,24 @@ from constants import *
 import os
 
 
+
 if len(argv) < 2:
     print("You need the player name to start the game.")
     #exit(-1)
     playerName = "Test" # For debug
     ip = HOST
     port = PORT
-elif len(argv) == 2:    
+elif len(argv) < 4:
+    #exit(-1)
     playerName = argv[1] # For debug
     ip = HOST
     port = PORT
+    print(playerName)
 else:
     playerName = argv[3]
     ip = argv[1]
     port = int(argv[2])
+    print(playerName)
 
 run = True
 
@@ -40,12 +44,12 @@ def manageInput():
         if command == "exit":
             run = False
             os._exit(0)
-        elif command == "help" and status == statuses[1]:
-            s.send(GameData.ClientHelpData(playerName).serialize())
         elif command == "ready" and status == statuses[0]:
             s.send(GameData.ClientPlayerStartRequest(playerName).serialize())
         elif command == "show" and status == statuses[1]:
             s.send(GameData.ClientGetGameStateRequest(playerName).serialize())
+        elif command == "help" and status == statuses[1]:
+            s.send(GameData.ClientHelpData(playerName).serialize())
         elif command.split(" ")[0] == "discard" and status == statuses[1]:
             try:
                 cardStr = command.split(" ")
@@ -90,19 +94,14 @@ def manageInput():
             continue
         stdout.flush()
 
-'''creating the socket to connect to the server'''
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:    
-    request = GameData.ClientPlayerAddData(playerName)    
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    request = GameData.ClientPlayerAddData(playerName)
     s.connect((HOST, PORT))
     s.send(request.serialize())
-    '''sending new player creation to the server'''
-    
     data = s.recv(DATASIZE)
     data = GameData.GameData.deserialize(data)
     if type(data) is GameData.ServerPlayerConnectionOk:
         print("Connection accepted by the server. Welcome " + playerName)
-    '''waiting response from the server'''
-
     print("[" + playerName + " - " + status + "]: ", end="")
     Thread(target=manageInput).start()
     while run:

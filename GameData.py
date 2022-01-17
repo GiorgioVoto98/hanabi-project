@@ -37,8 +37,8 @@ class ClientHintData(ClientToServerData):
         super().__init__(sender, action)
 
 class ClientHelpData(ClientToServerData):
-    def __init__(self, sender):
-        action = "Help"
+    def __init__(self, sender) -> None:
+        action = "Help me!"
         super().__init__(sender, action)
 
 class ClientPlayerAddData(ClientToServerData):

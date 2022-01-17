@@ -1,10 +1,10 @@
+# coding=utf-8
 from copy import deepcopy
 from random import shuffle
 import GameData
 import logging
-import PlayerAI
-
-AI = PlayerAI.NoobPlayer()
+import numpy as np
+import utils as ut
 
 class Card(object):
     def __init__(self, id, value, color) -> None:
@@ -18,7 +18,10 @@ class Card(object):
 
     def toClientString(self):
         return ("Card " + str(self.value) + " - " + str(self.color))
-    
+
+    def getCardCell(self):
+        return self.value-1, ut.colors[self.color]
+
     def __hash__(self):
         return self.id
 
@@ -38,18 +41,56 @@ class Token(object):
         return ("Token " + self.type + "; Flipped: " + str(self.flipped))
 
 class Player(object):
-    def __init__(self, name, playerId) -> None:
+    def __init__(self, name) -> None:
         super().__init__()
-        self.playerId = playerId
         self.name = name
         self.ready = False
         self.hand = []
+        self.hintMatrix = []
 
     def takeCard(self, cards):
         self.hand.append(cards.pop())
+        self.hintMatrix.append(np.ones((ut.NUM_COLORS,ut.NUM_VALUES)))
 
-    def takeSingleCard(self, card):
-        self.hand.append(card)
+    def discard(self, position):
+        self.hand.pop(position)
+        self.hintMatrix.pop(position)
+
+    def simulate_hint(self, requester, type, value, Game):
+        # mental representation of your hand.
+        new_hint_matrix = deepcopy(self.hintMatrix)
+        if type == 'value':
+            for pos in range(ut.NUM_VALUES):
+                if self.hand[pos].value == value:
+                    new_hint_matrix[pos] = ut.selRow(value - 1)
+                else:
+                    new_hint_matrix[pos] = ut.delRow(value - 1)
+        elif type == 'color':
+            value = ut.colors[value]
+            for pos in range(ut.NUM_COLORS):
+                if self.hand[pos].value == value:
+                    new_hint_matrix[pos] = ut.selCol(value)
+                else:
+                    new_hint_matrix[pos] = ut.delCol(value)
+        return self.__getHandProbability(new_hint_matrix,requester,Game)
+
+
+
+    def hint(self,type,positions,value):
+        # mental representation of your hand.
+        if type=='value':
+            for pos in range(ut.NUM_VALUES):
+                if pos in positions:
+                    self.hintMatrix[pos] *= ut.selRow(value-1)
+                else:
+                    self.hintMatrix[pos] *= ut.delRow(value-1)
+        elif type=='color':
+            value = ut.colors[value]
+            for pos in range(ut.NUM_COLORS):
+                if pos in positions:
+                    self.hintMatrix[pos] *= ut.selCol(value)
+                else:
+                    self.hintMatrix[pos] *= ut.delCol(value)
     
     def toString(self):
         c = "[ \n\t"
@@ -64,6 +105,156 @@ class Player(object):
             c += "\t" + card.toClientString() + " \n\t"
         c += " ]"
         return ("Player " + self.name + " { \n\tcards: " + c + "\n}")
+
+    def getHandMartix(self):
+        # get the Handd Matrix of the others player
+        handMatrix = np.zeros((ut.NUM_VALUES,ut.NUM_COLORS))
+        for card in self.hand:
+            val, col = card.getCardCell()
+            handMatrix[val][col] += 1
+        return handMatrix
+
+    def __getProbableHandMatrix(self,hintMatrix,requester,Game):
+        # a user can estimate the probability by checking the remaining cards
+        # and anding them with the hintMatrix
+        # we can estimate the mental representation also of another user,
+        # by thinking as he would do, but without using the info about my hand (that he has)
+        probableMatrix = []
+        start = Game.getStartingMatrix()
+        remainings = start - Game.getTableMatrix() - Game.getDiscardedMatrix()
+        # mi ottengo la mano probabile di un giocatore, senza conoscere le mie carte (requester)
+        # e quelle del giocatore (self)
+        for player in Game.getPlayers():
+            if (player.name!=self.name) and (player.name!=requester.name):
+                remainings = remainings - player.getHandMartix()
+        for i in range(len(self.hand)):
+            mat = remainings * hintMatrix[i]   ##here we can get the probability of having a single card
+            probableMatrix.append(mat / np.sum(mat))
+        return probableMatrix
+
+    def __getHandProbability(self,hintMatrix,requester,Game):
+        usefulProbability = []
+        uselessProbability = []
+        usefulCards, uselessCards = Game.getUseCardMatrix()
+        probableMatrix = self.__getProbableHandMatrix(hintMatrix,requester,Game)
+        for i in range(len(self.hand)):
+            mat = probableMatrix[i] * usefulCards
+            usefulProbability.append(np.sum(mat))
+
+        for i in range(len(self.hand)):
+            mat = probableMatrix[i] * uselessCards
+            uselessProbability.append(np.sum(mat))
+        return usefulProbability, uselessProbability
+
+
+    def eval_action(self,Game,action):
+        tableMatrix = Game.getTableMatrix()
+        note_tokens = Game.getNoteTokens()
+        storm_tokens = Game.getStormTokens()
+        current_points = np.sum(tableMatrix)
+        start = Game.getStartingMatrix()
+        remainings = start - Game.getTableMatrix() - Game.getDiscardedMatrix()
+
+        def eval_state(action, ok):
+            if (action[1]=='discard'):
+                card = self.hand[action[2]]
+                if (note_tokens==0):
+                    return -100
+                elif ok==1:
+                    return current_points+0.3
+                else:
+                    return  current_points
+            elif (action[1]=='play'):
+                if ok:
+                    return current_points+1
+                else:
+                    if (storm_tokens==2):
+                        return current_points-4
+                    else:
+                        return current_points-((storm_tokens+1)*0.4)
+            elif (action[1]=='hint'):
+                if (note_tokens==8):
+                    return -1
+                else:
+                    if ok:
+                        return current_points+1
+                    else:
+                        return current_points
+
+        return action[0]*eval_state(action,True)+(1-action[0])*eval_state(action,False)
+
+
+    def action(self,requester,OldGame, DEPTH = 0):
+        Game = deepcopy(OldGame)
+        bestActions = []
+        worstAction = 0
+
+        def updateBestAction(action, worstAction):
+            MAX_ACTIONS = 5
+            newWorst = worstAction
+            #   if we have not reached already the max actions. Insert
+            #   if we have reached. Update the new worst move
+            if (len(bestActions)<MAX_ACTIONS):
+                bestActions.append(action)
+                if (len(bestActions) == MAX_ACTIONS):
+                    for i in range(MAX_ACTIONS):
+                        if bestActions[i][0] < bestActions[newWorst][0]:
+                            newWorst = i
+            elif (len(bestActions) == MAX_ACTIONS):
+                #check the if the action is better than the worst move of the best action
+                if (action[0]>bestActions[newWorst][0]):
+                    bestActions.pop(newWorst)
+                    bestActions.append(action)
+                    #remove the worst one and update the new worst move
+                    newWorst=0
+                    for i in range(MAX_ACTIONS):
+                        if bestActions[i][0]<=bestActions[newWorst][0]:
+                            newWorst=i
+            return newWorst
+
+        usefulProb, uselessProb = self.__getHandProbability(self.hintMatrix,requester,Game)
+        for i in range(len(usefulProb)):
+            action = [usefulProb[i], 'play', i]
+            res = self.eval_action(Game,action)
+            worstAction = updateBestAction([res, 'play', i], worstAction)
+
+        for i in range(len(uselessProb)):
+            action = [uselessProb[i], 'discard', i]
+            res = self.eval_action(Game, action)
+            worstAction = updateBestAction([res, 'discard', i], worstAction)
+
+        for player in Game.getPlayers():
+            if player.name!=requester.name:
+                usefulProb, _ = player.__getHandProbability(player.hintMatrix,requester, Game)
+                probOfGoodMove = np.max(usefulProb)
+                hinted_values = []
+                hinted_colors = []
+
+                for card in player.hand:
+                    if card.value not in hinted_values:
+                        hinted_values.append(card.value)
+                        new_usefulProb, _ = player.simulate_hint(requester,'value',card.value,Game)
+                        new_probOfGoodMove = np.max(new_usefulProb)
+                        action = [new_probOfGoodMove-probOfGoodMove, 'hint', ('value', card.value, player.name)]
+                        res = self.eval_action(Game, action)
+                        action[0] = res
+                        worstAction = updateBestAction(action, worstAction)
+                    if card.color not in hinted_colors:
+                        hinted_colors.append(card.color)
+                        new_usefulProb, _ = player.simulate_hint(requester, 'color', card.color, Game)
+                        new_probOfGoodMove = np.max(new_usefulProb)
+                        action = [new_probOfGoodMove - probOfGoodMove, 'hint', ('color', card.color, player.name)]
+                        res = self.eval_action(Game, action)
+                        action[0] = res
+                        worstAction = updateBestAction(action, worstAction)
+
+        return bestActions
+
+        ### giro su tutti i giocatori
+        ### ottengo quanto è buona la situazione se giocassero loro
+        ### gli do un hint -> ottengo quanto è buona la situazione se giocassero dopo...
+        ### funziona?
+
 
 class Game(object):
 
@@ -83,7 +274,6 @@ class Game(object):
     __MAX_FIREWORKS = 5
 
     def __init__(self) -> None:
-        self.AI = PlayerAI.NoobPlayer()
         super().__init__()
         self.__discardPile = []
         self.__completedFireworks = 0
@@ -178,6 +368,7 @@ class Game(object):
         self.__dataActions[GameData.ClientHintData] = self.__satisfyHintRequest
         self.__dataActions[GameData.ClientHelpData] = self.__satisfyHelpRequest
 
+
     # Request satisfaction methods
     # Each method produces a tuple of ServerToClientData derivates
     # where the first element is the one to send to a single player, while the second one has to be sent to all players
@@ -190,7 +381,18 @@ class Game(object):
         else:
             return GameData.ServerInvalidDataReceived(data), None
 
-    # Draw request    
+    # Help request
+    def __satisfyHelpRequest(self, data: GameData.ClientPlayerDiscardCardRequest):
+        player = self.__getCurrentPlayer()
+        # It's the right turn to perform an action
+        if player.name == data.sender:
+            actions = player.action(player,self)
+            return (None, GameData.ServerActionInvalid(f"It is not your turn yet {actions}"))
+        else:
+            return (GameData.ServerActionInvalid("It is not your turn yet"), None)
+
+
+    # Draw request
     def __satisfyDiscardRequest(self, data: GameData.ClientPlayerDiscardCardRequest):
         player = self.__getCurrentPlayer()
         # It's the right turn to perform an action
@@ -198,16 +400,11 @@ class Game(object):
             if data.handCardOrdered >= len(player.hand) or data.handCardOrdered < 0:
                 return (GameData.ServerActionInvalid("You don't have that many cards!"), None)
             card: Card = player.hand[data.handCardOrdered]
-            res, (pId, cId, num, col) = self.__discardCard(card.id, player.name)
-            if not res:
+            if not self.__discardCard(card.id, player.name):
                 logging.warning("Impossible discarding a card: there is no used token available")
                 return (GameData.ServerActionInvalid("You have no used tokens"), None)
             else:
-                res, (num2, col2) = self.__drawCard(player.name)
-                if res:
-                    self.AI.execute_discard(pId,cId,num,col,num2,col2)
-                else:
-                    self.AI.execute_discard(pId,cId,num,col,0,0)
+                self.__drawCard(player.name)
                 logging.info("Player: " + self.__getCurrentPlayer().name + ": card " + str(card.id) + " discarded successfully")
                 self.__nextTurn()
                 return (None, GameData.ServerActionValid(self.__getCurrentPlayer().name, player.name, "discard", card, data.handCardOrdered))
@@ -252,10 +449,6 @@ class Game(object):
         else:
             return (GameData.ServerActionInvalid("It is not your turn yet"), None)
 
-    def __satisfyHelpRequest(self, data: GameData.ClientHintData):
-        AI.bestOption()
-        return (GameData.ServerActionInvalid("It is not your turn yet"), None)
-
     # Satisfy hint request
     def __satisfyHintRequest(self, data: GameData.ClientHintData):
         if self.__getCurrentPlayer().name != data.sender:
@@ -265,7 +458,6 @@ class Game(object):
             return GameData.ServerActionInvalid("All the note tokens have been used"), None
         positions = []
         destPlayer: Player = None
-        value = data.value
         for p in self.__players:
             if p.name == data.destination:
                 destPlayer = p
@@ -290,16 +482,10 @@ class Game(object):
 
         if len(positions) == 0:
             return GameData.ServerInvalidDataReceived(data="You cannot give hints about cards that the other person does not have"), None
-        
-        if data.type=='color':
-            value=PlayerAI.getColor(value)
-        else:
-            value=value-1
-        self.AI.execute_hint(destPlayer.playerId,data.type,value,positions)
-
         self.__nextTurn()
         self.__noteTokens += 1
         logging.info("Player " + data.sender + " providing hint to " + data.destination + ": cards with " + data.type + " " + str(data.value) + " are in positions: " + str(positions))
+        destPlayer.hint(data.type, positions, data.value)
         return None, GameData.ServerHintData(data.sender, data.destination, data.type, data.value, positions)
 
     def isGameOver(self):
@@ -308,9 +494,7 @@ class Game(object):
     # Player functions
     # players list. Not the best, but there are literally max 5 players and the list should give us the order of connection = the order of the rounds
     def addPlayer(self, name: str):
-        if name=='AI':
-            self.AI.setPlayerId(len(self.__players))
-        self.__players.append(Player(name,len(self.__players)))
+        self.__players.append(Player(name))
 
     def removePlayer(self, name: str):
         for p in self.__players:
@@ -343,18 +527,12 @@ class Game(object):
         logging.info("Ok, let's start the game!")
         if len(self.__players) < 4:
             for p in self.__players:
-                for i in range(5):
-                    card = self.__cardsToDraw.pop()
-                    if p != 'AI':
-                        self.AI.players[p.playerId,i]=[card.value-1, PlayerAI.getColor(card.color), 1, 1]
-                    p.takeSingleCard(card)
+                for _ in range(5):
+                    p.takeCard(self.__cardsToDraw)
         else:
-            for i in range(4):
+            for _ in range(4):
                 for p in self.__players:
-                    card = self.__cardsToDraw.pop()
-                    if p != 'AI':
-                        self.AI.players[p.playerId, i] = [card.value - 1, PlayerAI.getColor(card.color), 1, 1]
-                    p.takeSingleCard(card)
+                    p.takeCard(self.__cardsToDraw)
         self.__started = True
 
     def __getPlayersStatus(self, currentPlayerName):
@@ -387,40 +565,26 @@ class Game(object):
                     if endLoop:
                         break
                     if card.id == cardID:
-                        pId = p.playerId
-                        cId = card.id
-                        num = card.value-1
-                        col = PlayerAI.getColor(card.color)
-
                         self.__discardPile.append(card) # discard
-                        p.hand.remove(card) # remove from hand
+                        cardPos = p.hand.index(card)
+                        p.discard(cardPos)
                         endLoop = True
 
-        return True, (pId, cId, num, col)
-
+        return True
+    
     def __drawCard(self, playerName: str):
         if len(self.__cardsToDraw) == 0:
-            return False
-        card = self.__cardsToDraw.pop()
+            return
         for p in self.__players:
             if p.name == playerName:
-                p.hand.append(card)
-        return True, (card.value-1, PlayerAI.getColor(card.color))
+                p.takeCard(self.__cardsToDraw)
 
     def __playCard(self, playerName: str, cardPosition: int):
         p = self.__getPlayer(playerName)
         self.__tableCards[p.hand[cardPosition].color].append(p.hand[cardPosition])
-        
-        col = PlayerAI.getColor(p.hand[cardPosition].color)
-        num = p.hand[cardPosition].value-1
-        p.hand.pop(cardPosition)
-                
-        if len(self.__cardsToDraw) > 0:            
-            card = self.__cardsToDraw.pop()    
-            self.AI.execute_add(p.playerId,cardPosition,num,col,card.value-1,PlayerAI.getColor(card.color))
-            p.hand.append(card)
-        else:
-            self.AI.execute_add(p.playerId,cardPosition,num,col,0,0)
+        p.discard(cardPosition)
+        if len(self.__cardsToDraw) > 0:
+            p.takeCard(self.__cardsToDraw)
     
     def __checkTableCards(self) -> bool:
         for cardPool in self.__tableCards:
@@ -460,3 +624,45 @@ class Game(object):
     
     def getPlayers(self):
         return self.__players
+
+    def getStartingMatrix(self):
+        CARD_VALUES = [3, 2, 2, 2, 1]
+        startMatrix = np.ones((ut.NUM_VALUES, ut.NUM_COLORS), dtype=np.int)
+        startMatrix *= CARD_VALUES
+        return np.transpose(startMatrix)
+
+    def getTableMatrix(self):
+        tableMatrix = np.zeros((ut.NUM_VALUES,ut.NUM_COLORS))
+        for color in self.__tableCards:
+            for card in self.__tableCards[color]:
+                val, col = card.getCardCell()
+                tableMatrix[val,col]=1
+        return tableMatrix
+
+    def getUseCardMatrix(self):
+        usefulCardMatrix = np.zeros((ut.NUM_VALUES,ut.NUM_COLORS))
+        uselessCardMatrix = np.zeros((ut.NUM_VALUES, ut.NUM_COLORS))
+        for color in self.__tableCards:
+            col = ut.colors[color]
+            val = len(self.__tableCards[color])
+            if val != 4:
+                 usefulCardMatrix[val,col]=1
+        for color in self.__tableCards:
+            col = ut.colors[color]
+            valComplete = len(self.__tableCards[color])
+            for val in range(valComplete):
+                uselessCardMatrix[val, col]=1
+        return usefulCardMatrix, uselessCardMatrix
+
+    def getDiscardedMatrix(self):
+        discardedMatrix = np.zeros((ut.NUM_VALUES, ut.NUM_COLORS))
+        for card in self.__discardPile:
+            val, col = card.getCardCell()
+            discardedMatrix[val, col] += 1
+        return discardedMatrix
+
+    def getStormTokens(self):
+        return self.__stormTokens
+
+    def getNoteTokens(self):
+        return self.__noteTokens

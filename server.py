@@ -22,6 +22,7 @@ status = statuses[0]
 
 commandQueue = {}
 
+
 def manageConnection(conn: socket, addr):
     global status
     with conn:
@@ -78,9 +79,7 @@ def manageConnection(conn: socket, addr):
                                         if game.isGameOver():
                                             os._exit(0)
                         commandQueue.clear()
-                    elif type(data) is not GameData.ClientPlayerAddData \
-                        and type(data) is not GameData.ClientPlayerStartRequest \
-                        and type(data) is not GameData.ClientPlayerReadyData:
+                    elif type(data) is not GameData.ClientPlayerAddData and type(data) is not GameData.ClientPlayerStartRequest and type(data) is not GameData.ClientPlayerReadyData:
                         commandQueue[playerName].append(data)
                 # In game
                 elif status == "Game":
