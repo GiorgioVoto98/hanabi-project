@@ -1,6 +1,7 @@
 import numpy as np
 
 colors = {'red': 0, 'blue': 1, 'yellow': 2, 'green': 3, 'white': 4}
+inv_colors = {0: 'red', 1: 'blue', 2: 'yellow', 3: 'green', 4: 'white'}
 NUM_COLORS = 5
 NUM_VALUES = 5
 RISK_FACTOR = 3
