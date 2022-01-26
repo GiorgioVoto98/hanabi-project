@@ -27,6 +27,10 @@ class AI_Player:
             self.hand.pop(position)
         self.hintMatrix.pop(position)
 
+    def update_hintMatrix(self, handSize):
+        while len(self.hintMatrix) != handSize:
+            self.hintMatrix.append(np.ones((ut.NUM_COLORS, ut.NUM_VALUES)))
+
     def get_hint_positions(self, type, value):
         positions = []
         pos = 0
@@ -227,13 +231,11 @@ class AI_Game:
                 return player
 
     def next_turn(self):
-        i = 0
-        for player in self.players:
+        for i, player in enumerate(self.players):
             if player.name == self.current_player:
                 cur_id = i
-            i += 1
-        i %= len(self.players)
-        self.current_player = self.players[i+1].name
+        next_id = (cur_id+1) % len(self.players)
+        self.current_player = self.players[next_id].name
 
     def get_current_player(self):
         return self.get_player(self.current_player)

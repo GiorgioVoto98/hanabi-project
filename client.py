@@ -2,6 +2,7 @@
 
 from sys import argv, stdout
 from threading import Thread
+from time import sleep
 import GameData
 import socket
 from constants import *
@@ -39,17 +40,22 @@ def get_player(name):
 def manageInput():
     global run
     global status
+
     while run:
         command = input()
         # Choose data to send
         if command == "exit":
             run = False
             os._exit(0)
-        elif command == "ready" and status == statuses[0]:
-            s.send(GameData.ClientPlayerStartRequest(playerName).serialize())
+        # elif command == "ready" and status == statuses[0]:
+        #     s.send(GameData.ClientPlayerStartRequest(playerName).serialize())
         elif command == "help" and status == statuses[1]:
-            print(MCTS_algo(ai_game,playerName))
-            # print(get_player(playerName).action(ai_game))
+            # Get new updated state
+            s.send(GameData.ClientGetGameStateRequest(playerName).serialize())
+            sleep(0.2)
+            
+            # print(MCTS_algo(ai_game,playerName))
+            print(get_player(playerName).action(ai_game))
         elif command == "show" and status == statuses[1]:
             s.send(GameData.ClientGetGameStateRequest(playerName).serialize())
         elif command.split(" ")[0] == "discard" and status == statuses[1]:
@@ -106,6 +112,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         print("Connection accepted by the server. Welcome " + playerName)
     print("[" + playerName + " - " + status + "]: ", end="")
     Thread(target=manageInput).start()
+
+    # Send ready message immediatly 
+    s.send(GameData.ClientPlayerStartRequest(playerName).serialize())
+    
     while run:
         dataOk = False
         data = s.recv(DATASIZE)
@@ -126,6 +136,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             print("Game start!")
             s.send(GameData.ClientPlayerReadyData(playerName).serialize())
             status = statuses[1]
+            # Update state
+            s.send(GameData.ClientGetGameStateRequest(playerName).serialize())
         if type(data) is GameData.ServerGameStateData:
             dataOk = True
             print("Current player: " + data.currentPlayer)
@@ -152,33 +164,40 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                               data.currentPlayer)
             for p in data.players:
                 player = get_player(p.name)
-                i = 0
-                for card in p.hand:
-                    if i>=len(player.hand):
-                        player.give_card(card)
-                    i += 1
+                if player.name == playerName:
+                    player.update_hintMatrix(data.handSize)
+                else:
+                    for i, card in enumerate(p.hand):
+                        if i>=len(player.hand):
+                            player.give_card(card)
 
         if type(data) is GameData.ServerActionInvalid:
             dataOk = True
             print("Invalid action performed. Reason:")
             print(data.message)
-        if type(data) is GameData.ServerActionValid:
+        if type(data) is GameData.ServerActionValid: # DISCARD
             player = get_player(data.lastPlayer)
             player.throw_card(data.cardHandIndex)
             dataOk = True
             print("Action valid!")
             print("Current player: " + data.player)
+            # Update state
+            s.send(GameData.ClientGetGameStateRequest(playerName).serialize())
         if type(data) is GameData.ServerPlayerMoveOk:
             player = get_player(data.lastPlayer)
             player.throw_card(data.cardHandIndex)
             dataOk = True
             print("Nice move!")
             print("Current player: " + data.player)
+            # Update state
+            s.send(GameData.ClientGetGameStateRequest(playerName).serialize())
         if type(data) is GameData.ServerPlayerThunderStrike:
             player = get_player(data.lastPlayer)
             player.throw_card(data.cardHandIndex)
             dataOk = True
             print("OH NO! The Gods are unhappy with you!")
+            # Update state
+            s.send(GameData.ClientGetGameStateRequest(playerName).serialize())
         if type(data) is GameData.ServerHintData:
             dataOk = True
             print("Hint type: " + data.type)
