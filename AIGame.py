@@ -3,23 +3,22 @@ from builtins import int
 from copy import deepcopy
 import numpy as np
 import utils as ut
+from utils import get_card_cell
 from MCTS import State, MCTS
 from game import Card
 
 requester = "GIORGIO"
 
-def get_card_cell(card):
-    return card.value-1, ut.colors[card.color]
-
 class AI_Player:
-    def __init__(self, name):
+    def __init__(self, name, max_hand_size):
         self.name = name
         self.hand = []
-        self.hintMatrix = 5 * [np.ones((ut.NUM_COLORS, ut.NUM_VALUES))]
+        self.max_hand_size = max_hand_size
+        self.hintMatrix = max_hand_size * [np.ones((ut.NUM_COLORS, ut.NUM_VALUES))]
 
     def give_card(self, card):
         self.hand.append(card)
-        if len(self.hintMatrix) != 5:
+        if len(self.hintMatrix) != self.max_hand_size:
             self.hintMatrix.append(np.ones((ut.NUM_COLORS, ut.NUM_VALUES)))
 
     def throw_card(self, position):
@@ -160,22 +159,14 @@ class AI_Player:
 class AI_Game:
     def __init__(self, storm_tokens, note_tokens, table, discarded, players, current_player):
         self.current_player = current_player
-        CARD_VALUES = [3, 2, 2, 2, 1]
-        startMatrix = np.ones((ut.NUM_COLORS, ut.NUM_VALUES), dtype=np.int)
-        startMatrix *= CARD_VALUES
-        self.startMatrix = np.transpose(startMatrix)
         self.storm_tokens = storm_tokens
         self.note_tokens = note_tokens
-        self.tableMatrix = np.zeros((ut.NUM_VALUES, ut.NUM_COLORS), dtype=np.int)
-        self.discardedMatrix = np.zeros((ut.NUM_VALUES, ut.NUM_COLORS), dtype=np.int)
-        for color in table:
-            for card in table[color]:
-                val, col = get_card_cell(card)
-                self.tableMatrix[val, col] = 1
-        for card in discarded:
-            val, col = get_card_cell(card)
-            self.discardedMatrix[val, col] += 1
         self.players = players
+        self.startMatrix = ut.get_startMatrix()
+        self.tableMatrix = ut.get_tableMatrix(table)
+        self.discardedMatrix = ut.get_discardedMatrix(discarded)
+        self.max_hand_size = ut.max_hand_size(len(players))
+        self.last_turn = self.is_last_turn()
 
     def play(self, card):
         val, col = get_card_cell(card)
@@ -201,6 +192,13 @@ class AI_Game:
         v = np.random.choice(id_v)
         c = np.random.choice(id_v)
         return v, c
+
+    def is_last_turn(self):
+        remaining_cards = self.remaining_cards()
+        if np.count_nonzero(remaining_cards) == 0:
+            return True
+        else:
+            return False
 
     def usefl_cards(self):
         next_usefull = np.sum(self.tableMatrix, axis=0)

@@ -8,6 +8,7 @@ import socket
 from constants import *
 from AIGame import AI_Game, AI_Player, MCTS_algo
 import os
+import utils as ut
 
 if len(argv) < 4:
     print("You need the player name to start the game.")
@@ -22,11 +23,10 @@ else:
 
 run = True
 
-statuses = ["Lobby", "Game", "GameHint"]
+statuses = ["Lobby", "Game"]
 
 status = statuses[0]
 
-hintState = ("", "")
 
 ai_game = None
 players = []
@@ -130,7 +130,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         if type(data) is GameData.ServerStartGameData:
 
             for player_name in data.players:
-                players.append(AI_Player(player_name))
+                players.append(AI_Player(player_name, ut.max_hand_size(len(data.players))))
 
             dataOk = True
             print("Game start!")
