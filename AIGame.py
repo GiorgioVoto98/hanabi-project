@@ -9,6 +9,7 @@ from game import Card
 
 requester = "GIORGIO"
 
+
 class AI_Player:
     def __init__(self, name, max_hand_size):
         self.name = name
@@ -153,6 +154,9 @@ class AI_Player:
                     res = old_game.eval_action(action, new_confidence - confidence)
                     update_best_actions(action, res)
 
+        # Sort best_action based on score
+        best_actions = [action for _, action in sorted(zip(best_scores, best_actions), reverse=True)]
+
         return best_actions
 
 
@@ -190,7 +194,7 @@ class AI_Game:
         remaining_cards = self.remaining_cards()
         id_v, id_c = np.nonzero(remaining_cards)
         v = np.random.choice(id_v)
-        c = np.random.choice(id_v)
+        c = np.random.choice(id_c)
         return v, c
 
     def is_last_turn(self):
@@ -265,6 +269,7 @@ class AI_Game:
                     return current_points
 
         return prob*eval_state(True)+(1-prob)*eval_state(False)
+
 
 class MCTS_Hanabi_Node(State):
     def __init__(self, parent_action, game):
