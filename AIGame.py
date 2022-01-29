@@ -69,7 +69,7 @@ class AI_Player:
 
     def __get_hand_probs(self, game):
         hand_probability = []
-        remaining_cards = game.remaining_cards()
+        remaining_cards = game.remaining_cards(self.name)
 
         for i in range(len(self.hintMatrix)):
             mat = remaining_cards * self.hintMatrix[i]
@@ -125,45 +125,52 @@ class AI_Player:
 
         useful_prob, useless_prob = self.__play_or_discard_vector(old_game)
         for i in range(len(useful_prob)):
-            action = ['play', i]
-            res = old_game.eval_action(action, useful_prob[i])
-            update_best_actions([res, 'play', i], res)
+            if (useful_prob[i]>=0.5) and (old_game.storm_tokens < 2):
+                action = ['play', i]
+                res = useful_prob[i] #old_game.eval_action(action, useful_prob[i])
+                update_best_actions([res, 'play', i], res)
+            elif (useful_prob[i]>=0.9) :
+                action = ['play', i]
+                res = useful_prob[i] #old_game.eval_action(action, useful_prob[i])
+                update_best_actions([res, 'play', i], res)
 
-        for i in range(len(useless_prob)):
-            action = ['discard', i]
-            res = old_game.eval_action(action, useless_prob[i])
-            update_best_actions([res, 'discard', i], res)
+        if old_game.note_tokens == 8:
+            for i in range(len(useless_prob)):
+                action = ['discard', i]
+                res = useless_prob[i]/3 #old_game.eval_action(action, useless_prob[i])
+                update_best_actions([res, 'discard', i], res)
 
-        for player in old_game.players:
-            if player.name == self.name:
-                continue
-            useful_prob, _ = player.__play_or_discard_vector(old_game)
-            confidence = np.max(useful_prob)
-            hinted_values = []
-            hinted_colors = []
+        if old_game.note_tokens < 8:
+            for player in old_game.players:
+                if player.name == self.name:
+                    continue
+                useful_prob, _ = player.__play_or_discard_vector(old_game)
+                confidence = np.max(useful_prob)
+                hinted_values = []
+                hinted_colors = []
 
-            for card in player.hand:
-                if card.value not in hinted_values:
-                    hinted_values.append(card.value)
-                    new_player = deepcopy(player)
-                    positions = new_player.get_hint_positions('value', card.value)
-                    new_player.hint('value', card.value, positions)
-                    new_useful_prob, _ = new_player.__play_or_discard_vector(old_game)
-                    new_confidence = np.max(new_useful_prob)
-                    action = ['hint', 'value', card.value, player.name]
-                    res = old_game.eval_action(action, new_confidence - confidence)
-                    update_best_actions([res, 'hint', 'value', card.value, player.name], res)
-                if card.color not in hinted_colors:
-                    hinted_colors.append(card.color)
-                    new_player = deepcopy(player)
-                    positions = new_player.get_hint_positions('color', card.color)
-                    new_player.hint('color', card.color, positions)
-                    new_useful_prob, _ = new_player.__play_or_discard_vector(old_game)
-                    new_confidence = np.max(new_useful_prob)
-                    action = ['hint', 'color', card.color, player.name]
-                    res = old_game.eval_action(action, new_confidence - confidence)
-                    update_best_actions([res, 'hint', 'value', card.value, player.name], res)
-
+                for card in player.hand:
+                    # if old_game.is_playable(card):
+                        if card.value not in hinted_values:
+                            hinted_values.append(card.value)
+                            new_player = deepcopy(player)
+                            positions = new_player.get_hint_positions('value', card.value)
+                            new_player.hint('value', card.value, positions)
+                            new_useful_prob, _ = new_player.__play_or_discard_vector(old_game)
+                            new_confidence = np.max(new_useful_prob)
+                            action = ['hint', 'value', card.value, player.name]
+                            res = new_confidence - confidence # old_game.eval_action(action, new_confidence - confidence)
+                            update_best_actions([res, 'hint', 'value', card.value, player.name], res)
+                        if card.color not in hinted_colors:
+                            hinted_colors.append(card.color)
+                            new_player = deepcopy(player)
+                            positions = new_player.get_hint_positions('color', card.color)
+                            new_player.hint('color', card.color, positions)
+                            new_useful_prob, _ = new_player.__play_or_discard_vector(old_game)
+                            new_confidence = np.max(new_useful_prob)
+                            action = ['hint', 'color', card.color, player.name]
+                            res = new_confidence - confidence # old_game.eval_action(action, new_confidence - confidence)
+                            update_best_actions([res, 'hint', 'color', card.color, player.name], res)
         # Sort best_action based on score
         best_actions = [action for _, action in sorted(zip(best_scores, best_actions), reverse=True)]
 
@@ -190,15 +197,23 @@ class AI_Game:
         else:
             self.tableMatrix[val, col] = 1
 
+    def is_playable(self, card):
+        val, col = get_card_cell(card)
+        next_usefull_cards, _ = self.usefl_cards()
+        if next_usefull_cards[val, col] != 1:
+            return False
+        else:
+            return True
+
     def discard(self, card):
         val, col = get_card_cell(card)
         self.discardedMatrix[val, col] += 1
         self.note_tokens += 1
 
-    def remaining_cards(self):
+    def remaining_cards(self, player_request = ""):
         remaining = self.startMatrix - self.tableMatrix - self.discardedMatrix
         for player in self.players:
-            if player.name != self.current_player:
+            if (player.name != self.current_player) and (player.name != player_request):
                 remaining = remaining - player.get_hand_martix()
         return remaining
 
@@ -238,9 +253,7 @@ class AI_Game:
         return next_usefull_cards, next_useless_cards
 
     def eval(self):
-        if self.note_tokens < 0:
-            return 0
-        elif self.storm_tokens >= 3:
+        if self.storm_tokens >= 3:
             return 0
         else:
             return np.sum(self.tableMatrix)
@@ -267,10 +280,8 @@ class AI_Game:
             if action[0] == 'play':
                 if ok:
                     return current_points+1
-                elif self.storm_tokens == 2:
-                    return current_points-4
                 else:
-                    return current_points-(self.storm_tokens+1)*0.4
+                    return current_points
             elif action[0] == 'discard':
                 if self.note_tokens == 0:
                     return -1
@@ -282,7 +293,7 @@ class AI_Game:
                 if self.note_tokens == 8:
                     return -1
                 elif ok:
-                    return current_points
+                    return current_points+0.1
                 else:
                     return current_points
 
@@ -311,29 +322,29 @@ class MCTS_Hanabi_Node(State):
     def execute_action(self,action):
         new_game = deepcopy(self.game)
         current_player = new_game.get_current_player()
-        if action[0] == 'play':
+        if action[1] == 'play':
             # questo più o meno. In realtà io non so che carta ho in mano. Come la gioco?
 
-            card = current_player.hand[action[1]]
+            card = current_player.hand[action[2]]
             new_game.play(card)
-            current_player.throw_card(action[1])
+            current_player.throw_card(action[2])
 
             # questo più o meno. In realtà io non dovrei dare una carta se sono me stesso?
             v, c = new_game.extract_card()
             current_player.give_card(Card(-1, v + 1, ut.inv_colors[c]))
             new_game.next_turn()
-        elif action[0] == 'discard':
+        elif action[1] == 'discard':
             # questo più o meno. In realtà io non so che carta ho in mano. Come la gioco?
-            card = current_player.hand[action[1]]
+            card = current_player.hand[action[2]]
             new_game.discard(card)
-            current_player.throw_card(action[1])
+            current_player.throw_card(action[2])
             # questo più o meno. In realtà io non dovrei dare una carta se sono me stesso?
             v, c = new_game.extract_card()
             current_player.give_card(Card(-1, v + 1, ut.inv_colors[c]))
             new_game.next_turn()
-        elif action[0] == 'hint':
-            pos = new_game.get_player(action[3]).get_hint_positions(action[1],action[2])
-            new_game.get_player(action[3]).hint(action[1],action[2], pos)
+        elif action[1] == 'hint':
+            pos = new_game.get_player(action[4]).get_hint_positions(action[2],action[3])
+            new_game.get_player(action[4]).hint(action[2],action[3], pos)
             new_game.next_turn()
         return MCTS_Hanabi_Node(action,new_game,self.root_player)
 

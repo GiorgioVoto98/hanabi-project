@@ -31,23 +31,23 @@ statuses = ["Lobby", "Game"]
 status = statuses[0]
 
 ai_game = None
-ai_players: list[AI_Player] = []
-current_player: str = ""
+ai_players = []#: List[AI_Player] = []
+current_player = ""#: str = ""
 
 
-def get_player(name: str) -> AI_Player:
+def get_player(name) -> AI_Player:
     for pl in ai_players:
         if pl.name == name:
             return pl
 
 
-def init_ai_players(players_names: list[str]):
+def init_ai_players(players_names):
     max_hand_size = ut.max_hand_size(len(players_names))
     for player_name in players_names:
         ai_players.append(AI_Player(player_name, max_hand_size))
 
 
-def update_ai_players(players: list[Player], handSize: int):
+def update_ai_players(players, handSize):
     for pl in players:
         ai_player = get_player(pl.name)
         if ai_player.name == playerName:
@@ -138,7 +138,7 @@ def agentAI():
             if current_player == playerName:
                 current_player == ""
 
-                #actions = get_player(playerName).action(ai_game)
+                #actions = (get_player(playerName).action(ai_game))[0]
                 actions = MCTS_algo(ai_game,playerName)
                 print(actions)
 
