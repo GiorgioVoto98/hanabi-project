@@ -173,7 +173,6 @@ class AI_Player:
                             update_best_actions([res, 'hint', 'color', card.color, player.name], res)
         # Sort best_action based on score
         best_actions = [action for _, action in sorted(zip(best_scores, best_actions), reverse=True)]
-
         return best_actions
 
 
@@ -217,12 +216,12 @@ class AI_Game:
                 remaining = remaining - player.get_hand_martix()
         return remaining
 
-    def extract_card(self, hint_matrix = None, card_avoided = None):
-        remaining_cards = self.remaining_cards()
-        if hint_matrix is not None:
-            remaining_cards = remaining_cards * hint_matrix
+    def extract_card(self, hint_matrix = None, card_avoided = None, player_request = ""):
+        remaining_cards = self.remaining_cards(player_request)
         if card_avoided is not None:
             remaining_cards = remaining_cards - card_avoided
+        if hint_matrix is not None:
+            remaining_cards = remaining_cards * hint_matrix
         if np.sum(remaining_cards)==0:
             return -1, -1
         id_v, id_c = np.nonzero(remaining_cards)
