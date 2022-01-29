@@ -137,8 +137,9 @@ def agentAI():
         if status == statuses[1]:
             if current_player == playerName:
                 current_player == ""
-                
-                actions = get_player(playerName).action(ai_game)
+
+                #actions = get_player(playerName).action(ai_game)
+                actions = MCTS_algo(ai_game,playerName)
                 print(actions)
 
                 if not AUTOMATIC:
@@ -146,13 +147,13 @@ def agentAI():
 
                 # TO BE DELETED
                 def convertToAction(actionBad):
-                    if actionBad[0] == "play" or actionBad[0] == "discard":
-                        return Action(actionBad[0], value=actionBad[1])
-                    elif actionBad[0] == "hint":
-                        return Action(actionBad[0], type=actionBad[1], value=actionBad[2], dest=actionBad[3])
+                    if actionBad[1] == "play" or actionBad[1] == "discard":
+                        return Action(actionBad[1], value=actionBad[2])
+                    elif actionBad[1] == "hint":
+                        return Action(actionBad[1], type=actionBad[2], value=actionBad[3], dest=actionBad[4])
 
-                action = convertToAction(actions[0])
-                
+                action = convertToAction(actions)
+
                 ok = action.send(playerName, s)
                 if ok:
                     print("[" + playerName + " - " + status + "]: ", end="")

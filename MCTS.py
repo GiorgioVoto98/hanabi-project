@@ -3,7 +3,7 @@ from multiprocessing.managers import State
 
 
 class MCTS:
-    def __init__(self, State, iterations=30):
+    def __init__(self, State, iterations=400):
         self.StartState = State
         self.iterations = iterations
 
@@ -11,6 +11,7 @@ class MCTS:
         if (State.nexp) == 0:
             State.choosen()
             res = State.eval()
+            State.totalVal += res
             return res
         else:
             State.choosen()
@@ -42,6 +43,8 @@ class MCTS:
 
     def best_action(self):
         for i in range(self.iterations):
+            if not self.StartState.game.get_current_player().redeterminize(self.StartState.game):
+                break
             self.execute(self.StartState)
         child_chosen = None
         best_res = -1
