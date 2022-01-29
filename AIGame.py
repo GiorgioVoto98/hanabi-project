@@ -125,7 +125,7 @@ class AI_Player:
 
         useful_prob, useless_prob = self.__play_or_discard_vector(old_game)
         for i in range(len(useful_prob)):
-            if (useful_prob[i]>=0.5) and (old_game.storm_tokens < 2):
+            if (useful_prob[i]>=0.6) and (old_game.storm_tokens < 2):
                 action = ['play', i]
                 res = useful_prob[i] #old_game.eval_action(action, useful_prob[i])
                 update_best_actions([res, 'play', i], res)
@@ -134,7 +134,7 @@ class AI_Player:
                 res = useful_prob[i] #old_game.eval_action(action, useful_prob[i])
                 update_best_actions([res, 'play', i], res)
 
-        if old_game.note_tokens == 8:
+        if old_game.note_tokens > 0:
             for i in range(len(useless_prob)):
                 action = ['discard', i]
                 res = useless_prob[i]/3 #old_game.eval_action(action, useless_prob[i])
