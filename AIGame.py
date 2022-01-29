@@ -282,9 +282,9 @@ class AI_Game:
                 if self.note_tokens == 8:
                     return -1
                 elif ok:
-                    return current_points+0.1
+                    return current_points
                 else:
-                    return current_points-0.5
+                    return current_points
 
         return prob*eval_state(True)+(1-prob)*eval_state(False)
 
