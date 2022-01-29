@@ -108,7 +108,7 @@ class AI_Player:
         best_scores = []
 
         def update_best_actions(action, score):
-            MAX_ACTIONS = 10
+            MAX_ACTIONS = 5
             if len(best_actions) < MAX_ACTIONS:
                 best_scores.append(score)
                 best_actions.append(action)
@@ -192,6 +192,7 @@ class AI_Game:
         val, col = get_card_cell(card)
         next_usefull_cards, _ = self.usefl_cards()
         if next_usefull_cards[val, col] != 1:
+            self.discardedMatrix[val, col] += 1
             self.storm_tokens += 1
         else:
             self.tableMatrix[val, col] = 1
@@ -330,7 +331,8 @@ class MCTS_Hanabi_Node(State):
 
             # questo più o meno. In realtà io non dovrei dare una carta se sono me stesso?
             v, c = new_game.extract_card()
-            current_player.give_card(Card(-1, v + 1, ut.inv_colors[c]))
+            if v != -1:
+                current_player.give_card(Card(-1, v + 1, ut.inv_colors[c]))
             new_game.next_turn()
         elif action[1] == 'discard':
             # questo più o meno. In realtà io non so che carta ho in mano. Come la gioco?
@@ -339,7 +341,8 @@ class MCTS_Hanabi_Node(State):
             current_player.throw_card(action[2])
             # questo più o meno. In realtà io non dovrei dare una carta se sono me stesso?
             v, c = new_game.extract_card()
-            current_player.give_card(Card(-1, v + 1, ut.inv_colors[c]))
+            if v != -1:
+                current_player.give_card(Card(-1, v + 1, ut.inv_colors[c]))
             new_game.next_turn()
         elif action[1] == 'hint':
             pos = new_game.get_player(action[4]).get_hint_positions(action[2],action[3])
