@@ -94,7 +94,7 @@ class AI_Player:
         self.real_hand = self.hand
         self.hand = []
         card_avoided = np.zeros((ut.NUM_VALUES, ut.NUM_COLORS))
-        for i in range(self.max_hand_size):
+        for i in range(len(self.hintMatrix)):
             v, c = game.extract_card(self.hintMatrix[i], card_avoided)
             if v == -1:
                 return False
@@ -108,7 +108,7 @@ class AI_Player:
         best_scores = []
 
         def update_best_actions(action, score):
-            MAX_ACTIONS = 5
+            MAX_ACTIONS = 6
             if len(best_actions) < MAX_ACTIONS:
                 best_scores.append(score)
                 best_actions.append(action)
