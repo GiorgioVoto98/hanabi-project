@@ -46,14 +46,14 @@ class AI_Player:
     def hint(self, type, value, positions):
         # mental representation of your hand.
         if type == 'value':
-            for pos in range(ut.NUM_VALUES):
+            for pos in range(len(self.hintMatrix)):
                 if pos in positions:
                     self.hintMatrix[pos] = self.hintMatrix[pos] * ut.selRow(value-1)
                 else:
                     self.hintMatrix[pos] = self.hintMatrix[pos] * ut.delRow(value-1)
         elif type == 'color':
             value = ut.colors[value]
-            for pos in range(ut.NUM_COLORS):
+            for pos in range(len(self.hintMatrix)):
                 if pos in positions:
                     self.hintMatrix[pos] = self.hintMatrix[pos] * ut.selCol(value)
                 else:
