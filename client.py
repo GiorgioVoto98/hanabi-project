@@ -5,6 +5,7 @@ from threading import Thread
 from time import sleep
 import os
 import socket
+import numpy as np
 
 import GameData
 from constants import *
@@ -14,7 +15,10 @@ from AIPlayer import AI_Player
 from action import Action
 import utils as ut
 
+AI = True
 AUTOMATIC = True
+MCTS = True
+NUM_GAMES = 1
 
 if len(argv) < 4:
     print("You need the player name to start the game.")
@@ -59,12 +63,18 @@ def update_ai_players(players, handSize):
                     ai_player.give_card(card)
 
 
+def reset_ai_players():
+    for ai_player in ai_players:
+        ai_player.hand = []
+        ai_player.hintMatrix = []
+
+
 def next_turn():
     # Ask the server to show the data
     s.send(GameData.ClientGetGameStateRequest(playerName).serialize())
 
 
-def manageInput():
+def agentHuman():
     global run
     global status
 
@@ -139,13 +149,11 @@ def agentAI():
             if current_player == playerName:
                 current_player == ""
 
-                # actions = (get_player(playerName).action(ai_game))[0]
-                actions = MCTS_algo(ai_game,playerName)
-                print(actions)
-
-                if not AUTOMATIC:
-                    input()
-
+                if not MCTS:
+                    action = (get_player(playerName).action(ai_game))[0]        
+                else:
+                    action = MCTS_algo(ai_game,playerName)
+                    
                 # TO BE DELETED
                 def convertToAction(actionBad):
                     if actionBad[1] == "play" or actionBad[1] == "discard":
@@ -153,7 +161,10 @@ def agentAI():
                     elif actionBad[1] == "hint":
                         return Action(actionBad[1], type=actionBad[2], value=actionBad[3], dest=actionBad[4])
 
-                action = convertToAction(actions)
+                action = convertToAction(action)
+
+                if not AUTOMATIC:
+                    input()
 
                 ok = action.send(playerName, s)
                 if ok:
@@ -162,7 +173,8 @@ def agentAI():
                     print("Action not valid")
                     os._exit(-1)
                 
-            sleep(0.1)  
+            sleep(0.01)
+        sleep(0.01)
 
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -177,12 +189,14 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         print("Connection accepted by the server. Welcome " + playerName)
     print("[" + playerName + " - " + status + "]: ", end="")
 
-    # Start HUMAN input agent
-    # Thread(target=manageInput).start()
+    if AI:
+        Thread(target=agentAI).start()
+    else:
+        Thread(target=agentHuman).start()
 
-    # Start AI agent
-    Thread(target=agentAI).start()
-    
+    game_num = 0
+    scores = np.empty(NUM_GAMES, dtype=np.int32)
+
     while run:
         dataOk = False
         data = s.recv(DATASIZE)
@@ -200,14 +214,15 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             dataOk = True
             print("Game start!")
 
-            # Init empty AI players
-            init_ai_players(data.players)
+            if AI:
+                # Init empty AI players
+                init_ai_players(data.players)
 
             s.send(GameData.ClientPlayerReadyData(playerName).serialize())
             status = statuses[1]
 
-            # Update state
-            next_turn()
+            if AI:
+                next_turn()
 
         if type(data) is GameData.ServerGameStateData:
             dataOk = True
@@ -219,63 +234,60 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             print("Cards in your hand: " + str(data.handSize))
             print("Table cards: ")
             for pos in data.tableCards:
-                print(pos + ": [ ")
+                print(f'\t{pos}\t->', end="\t")
                 for c in data.tableCards[pos]:
-                    print(c.toClientString() + " ")
-                print("]")
+                    print(c.value, end="  ")
+                print()
             print("Discard pile: ")
             for c in data.discardPile:
                 print("\t" + c.toClientString())
             print("Note tokens used: " + str(data.usedNoteTokens) + "/8")
             print("Storm tokens used: " + str(data.usedStormTokens) + "/3")
             
-            # Update state of the game
-            update_ai_players(data.players, data.handSize)
-            ai_game = AI_Game(data.usedStormTokens,
-                              data.usedNoteTokens,
-                              data.tableCards,
-                              data.discardPile,
-                              ai_players,
-                              data.currentPlayer)
-
-            current_player = data.currentPlayer
+            if AI:
+                # Update state of the game
+                update_ai_players(data.players, data.handSize)
+                ai_game = AI_Game(data.usedStormTokens,
+                                data.usedNoteTokens,
+                                data.tableCards,
+                                data.discardPile,
+                                ai_players,
+                                data.currentPlayer)
+                current_player = data.currentPlayer
 
         if type(data) is GameData.ServerActionInvalid:
             dataOk = True
             print("Invalid action performed. Reason:")
             print(data.message)
 
-        if type(data) is GameData.ServerActionValid:  # DISCARD
+        if type(data) is GameData.ServerActionValid: # discard
             dataOk = True
             print("Action valid!")
             print("Current player: " + data.player)
 
-            player = get_player(data.lastPlayer)
-            player.throw_card(data.cardHandIndex)
-            
-            # Update state
-            next_turn()
+            if AI:
+                player = get_player(data.lastPlayer)
+                player.throw_card(data.cardHandIndex)
+                next_turn()
 
         if type(data) is GameData.ServerPlayerMoveOk:
             dataOk = True
             print("Nice move!")
             print("Current player: " + data.player)
 
-            player = get_player(data.lastPlayer)
-            player.throw_card(data.cardHandIndex)
-            
-            # Update state
-            next_turn()
+            if AI:
+                player = get_player(data.lastPlayer)
+                player.throw_card(data.cardHandIndex)
+                next_turn()
 
         if type(data) is GameData.ServerPlayerThunderStrike:
             dataOk = True
             print("OH NO! The Gods are unhappy with you!")
 
-            player = get_player(data.lastPlayer)
-            player.throw_card(data.cardHandIndex)
-            
-            # Update state
-            next_turn()
+            if AI:
+                player = get_player(data.lastPlayer)
+                player.throw_card(data.cardHandIndex)
+                next_turn()
 
         if type(data) is GameData.ServerHintData:
             dataOk = True
@@ -284,12 +296,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             for i in data.positions:
                 print("\t" + str(i))
 
-            # Hint                
-            player = get_player(data.destination)
-            player.hint(data.type, data.value, data.positions)
-            
-            # Update state
-            next_turn()
+            if AI:                
+                player = get_player(data.destination)
+                player.hint(data.type, data.value, data.positions)
+                next_turn()
 
         if type(data) is GameData.ServerInvalidDataReceived:
             dataOk = True
@@ -302,9 +312,19 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             print(data.scoreMessage)
             stdout.flush()
 
-            run = False
-            break
-            # print("Ready for a new game!")
+            scores[game_num] = data.score
+            game_num += 1
+
+            if game_num == NUM_GAMES:
+                run = False
+                break
+            
+            print("Ready for a new game!")
+            if AI:
+                current_player = ""
+                game_ai = None
+                reset_ai_players()
+                next_turn()
 
         if not dataOk:
             print("Unknown or unimplemented data type: " + str(type(data)))
@@ -312,4 +332,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         print("[" + playerName + " - " + status + "]: ", end="")
         stdout.flush()
 
+    print("Scores:", scores)
+    print("Average score:", np.average(scores))
     print("CLIENT EXIT")
