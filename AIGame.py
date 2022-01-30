@@ -28,6 +28,8 @@ class AI_Game:
             self.storm_tokens += 1
         else:
             self.tableMatrix[val, col] = 1
+            if val == 5 and self.note_tokens > 0:
+                self.note_tokens -= 1
 
     def is_playable(self, card):
         val, col = get_card_cell(card)
@@ -38,11 +40,13 @@ class AI_Game:
             return True
 
     def discard(self, card):
+        assert self.note_tokens > 0
         val, col = get_card_cell(card)
         self.discardedMatrix[val, col] += 1
         self.note_tokens -= 1
     
     def hint(self, type, value, dest):
+        assert self.note_tokens < 8
         dest_player = self.get_player(dest)
         positions = dest_player.get_hint_positions(type, value)
         dest_player.hint(type, value, positions)
