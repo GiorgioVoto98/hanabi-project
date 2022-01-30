@@ -186,7 +186,7 @@ class AI_Game:
         self.tableMatrix = ut.get_tableMatrix(table)
         self.discardedMatrix = ut.get_discardedMatrix(discarded)
         self.max_hand_size = ut.max_hand_size(len(players))
-        self.last_turn = self.is_last_turn()
+        self.last_round = self.is_last_round()
 
     def play(self, card):
         val, col = get_card_cell(card)
@@ -208,6 +208,12 @@ class AI_Game:
     def discard(self, card):
         val, col = get_card_cell(card)
         self.discardedMatrix[val, col] += 1
+        self.note_tokens -= 1
+    
+    def hint(self, type, value, dest):
+        dest_player = self.get_player(dest)
+        positions = dest_player.get_hint_positions(type, value)
+        dest_player.hint(type, value, positions)
         self.note_tokens += 1
 
     def remaining_cards(self, player_request = ""):
@@ -230,12 +236,13 @@ class AI_Game:
         c = np.random.choice(id_c)
         return v, c
 
-    def is_last_turn(self):
-        remaining_cards = self.remaining_cards()
-        if np.count_nonzero(remaining_cards) == 0:
-            return True
-        else:
-            return False
+    def is_last_round(self):
+        # remaining_cards = self.remaining_cards()
+        # if np.count_nonzero(remaining_cards) == 0:
+        #     return True
+        # else:
+        #     return False
+        return None
 
     def usefl_cards(self):
         next_usefull = np.sum(self.tableMatrix, axis=0)
@@ -322,9 +329,9 @@ class MCTS_Hanabi_Node(State):
     def execute_action(self,action):
         new_game = deepcopy(self.game)
         current_player = new_game.get_current_player()
+
         if action[1] == 'play':
             # questo più o meno. In realtà io non so che carta ho in mano. Come la gioco?
-
             card = current_player.hand[action[2]]
             new_game.play(card)
             current_player.throw_card(action[2])
@@ -333,7 +340,6 @@ class MCTS_Hanabi_Node(State):
             v, c = new_game.extract_card()
             if v != -1:
                 current_player.give_card(Card(-1, v + 1, ut.inv_colors[c]))
-            new_game.next_turn()
         elif action[1] == 'discard':
             # questo più o meno. In realtà io non so che carta ho in mano. Come la gioco?
             card = current_player.hand[action[2]]
@@ -343,11 +349,10 @@ class MCTS_Hanabi_Node(State):
             v, c = new_game.extract_card()
             if v != -1:
                 current_player.give_card(Card(-1, v + 1, ut.inv_colors[c]))
-            new_game.next_turn()
         elif action[1] == 'hint':
-            pos = new_game.get_player(action[4]).get_hint_positions(action[2],action[3])
-            new_game.get_player(action[4]).hint(action[2],action[3], pos)
-            new_game.next_turn()
+            new_game.hint(action[2], action[3], action[4])
+
+        new_game.next_turn()
         return MCTS_Hanabi_Node(action,new_game,self.root_player)
 
     def enter_node(self, player):

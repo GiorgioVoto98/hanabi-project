@@ -138,7 +138,7 @@ def agentAI():
             if current_player == playerName:
                 current_player == ""
 
-                #actions = (get_player(playerName).action(ai_game))[0]
+                # actions = (get_player(playerName).action(ai_game))[0]
                 actions = MCTS_algo(ai_game,playerName)
                 print(actions)
 
