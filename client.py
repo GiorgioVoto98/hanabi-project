@@ -9,7 +9,8 @@ import socket
 import GameData
 from constants import *
 from game import Player
-from AIGame import AI_Game, AI_Player, MCTS_algo
+from AIGame import AI_Game, MCTS_algo
+from AIPlayer import AI_Player
 from action import Action
 import utils as ut
 
