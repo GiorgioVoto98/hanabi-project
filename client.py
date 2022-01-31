@@ -150,18 +150,9 @@ def agentAI():
                 current_player == ""
 
                 if not MCTS:
-                    action = (get_player(playerName).action(ai_game))[0]        
+                    action = get_player(playerName).action(ai_game)        
                 else:
-                    action = MCTS_algo(ai_game,playerName)
-                    
-                # TO BE DELETED
-                def convertToAction(actionBad):
-                    if actionBad[1] == "play" or actionBad[1] == "discard":
-                        return Action(actionBad[1], value=actionBad[2])
-                    elif actionBad[1] == "hint":
-                        return Action(actionBad[1], type=actionBad[2], value=actionBad[3], dest=actionBad[4])
-
-                action = convertToAction(action)
+                    action = MCTS_algo(ai_game, playerName)
 
                 if not AUTOMATIC:
                     input()

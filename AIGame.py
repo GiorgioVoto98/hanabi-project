@@ -9,6 +9,7 @@ from utils import get_card_cell
 from MCTS import State, MCTS
 from game import Card
 from AIPlayer import AI_Player
+from action import Action
 
 class AI_Game:
     def __init__(self, storm_tokens, note_tokens, table, discarded, players, current_player):
@@ -81,14 +82,6 @@ class AI_Game:
         # c = np.random.choice(id_c)
         return v, c
 
-    def is_last_round(self):
-        # remaining_cards = self.remaining_cards()
-        # if np.count_nonzero(remaining_cards) == 0:
-        #     return True
-        # else:
-        #     return False
-        return None
-
     '''
     def usefl_cards(self):
         next_usefull = np.sum(self.tableMatrix, axis=0)
@@ -146,43 +139,62 @@ class AI_Game:
     def get_current_player(self):
         return self.get_player(self.current_player)
 
-    def isGameOver(self):
+
+    def is_last_round(self):
+        remaining = np.sum(self.startMatrix - self.tableMatrix - self.discardedMatrix)
+        for p in self.players:
+            remaining -= len(p.hintMatrix)
+        if remaining == 0:
+            return True
+        else:
+            return False
+
+    def is_game_over(self):
         if self.storm_tokens == 3:
             return True, 0
-        #if self.is_last_round():
-        #    return True, np.sum(self.tableMatrix)
+        
+        score = np.sum(self.tableMatrix)
+        
+        if score == 25:
+            return True, 25
+
+        num_cards_players = 0
+        for p in self.players:
+            num_cards_players += len(p.hintMatrix)
+        if self.is_last_round() and num_cards_players == ((self.max_hand_size-1) * len(self.players)):
+            return True, score
         else:
-            return False, np.sum(self.tableMatrix)
+            return False, score
 
-    def execute_action(self,action):
+    def execute_action(self, action: Action):
         current_player = self.get_current_player()
-        if action[1] == 'play':
-            # questo più o meno. In realtà io non so che carta ho in mano. Come la gioco?
 
-            card = current_player.hand[action[2]]
+        if action.action == 'play':
+            # if action.value >= len(current_player.hand):
+            #     print(action.value)
+            #     print(current_player.hand)
+            card = current_player.hand[action.value]
             self.play(card)
-            current_player.throw_card(action[2])
+            current_player.throw_card(action.value)
 
-            # questo più o meno. In realtà io non dovrei dare una carta se sono me stesso?
             v, c = self.extract_card()
             if v != -1:
                 current_player.give_card(Card(-1, v + 1, ut.inv_colors[c]))
-            self.next_turn()
-        elif action[1] == 'discard':
-            # questo più o meno. In realtà io non so che carta ho in mano. Come la gioco?
-            card = current_player.hand[action[2]]
+        elif action.action == 'discard':
+            # if action.value >= len(current_player.hand):
+            #     print(action.value)
+            #     print(current_player.hand)
+            card = current_player.hand[action.value]
             self.discard(card)
-            current_player.throw_card(action[2])
-            # questo più o meno. In realtà io non dovrei dare una carta se sono me stesso?
+            current_player.throw_card(action.value)
+
             v, c = self.extract_card()
             if v != -1:
                 current_player.give_card(Card(-1, v + 1, ut.inv_colors[c]))
-            self.next_turn()
-        elif action[1] == 'hint':
-            pos = self.get_player(action[4]).get_hint_positions(action[2],action[3])
-            self.get_player(action[4]).hint(action[2],action[3], pos)
-            self.note_tokens += 1
-            self.next_turn()
+        elif action.action == 'hint':
+            self.hint(action.type, action.value, action.dest)
+        
+        self.next_turn()
 
 
 class MCTS_Hanabi_Node(State):
@@ -194,7 +206,7 @@ class MCTS_Hanabi_Node(State):
     def available_actions(self):
         player = self.game.get_current_player()
         self.exit_node(player)
-        actions = player.action(self.game)
+        actions = player.best_actions(self.game)
         self.enter_node(player)
         av_actions = []
         for action in actions:
@@ -205,17 +217,16 @@ class MCTS_Hanabi_Node(State):
         return self.game.eval()
     '''
 
-
     def eval(self):
         new_game = deepcopy(self.game)
         score = 0
 
         for i in range(0) :
         #while True
-            stop, score = new_game.isGameOver()
+            stop, score = new_game.is_game_over()
             if stop:
                 return score
-            best_action = new_game.get_current_player().action(new_game)[0]
+            best_action = new_game.get_current_player().action(new_game)
             new_game.execute_action(best_action)
         score = new_game.eval()
         return score
