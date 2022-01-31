@@ -2,7 +2,7 @@ import math
 from multiprocessing.managers import State
 
 class MCTS:
-    def __init__(self, State, iterations=400):
+    def __init__(self, State, iterations=300):
         self.StartState = State
         self.iterations = iterations
 

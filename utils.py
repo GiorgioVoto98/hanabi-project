@@ -49,6 +49,12 @@ def get_startMatrix():
     startMatrix *= CARD_VALUES
     return startMatrix
 
+def get_pointMatrix():
+    CARD_VALUES = np.array([5, 4, 3, 2, 1], dtype=np.int32).reshape((NUM_VALUES, 1))
+    point_matrix = np.ones((NUM_VALUES, NUM_COLORS), dtype=np.int32)
+    point_matrix *= CARD_VALUES
+    return point_matrix
+
 
 def get_tableMatrix(table):
     tableMatrix = np.zeros((NUM_VALUES, NUM_COLORS), dtype=np.int32)

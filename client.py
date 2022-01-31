@@ -18,7 +18,7 @@ import utils as ut
 AI = True
 AUTOMATIC = True
 MCTS = True
-NUM_GAMES = 1
+NUM_GAMES = 10
 
 if len(argv) < 4:
     print("You need the player name to start the game.")

@@ -1,4 +1,6 @@
 # coding=utf-8
+import math
+
 from builtins import int
 from copy import deepcopy
 import numpy as np
@@ -65,11 +67,18 @@ class AI_Game:
             remaining_cards = remaining_cards - card_avoided
         if hint_matrix is not None:
             remaining_cards = remaining_cards * hint_matrix
+        remaining_cards = remaining_cards * (remaining_cards > 0)
         if np.sum(remaining_cards)==0:
             return -1, -1
-        id_v, id_c = np.nonzero(remaining_cards)
-        v = np.random.choice(id_v)
-        c = np.random.choice(id_c)
+        p = remaining_cards
+        p = p / np.sum(p)
+        p = p.flatten()
+        val = np.random.choice(np.arange(0, 25), size=1, replace=False, p=p)
+        v = int(val / 5)
+        c = int(val % 5)
+        # id_v, id_c = np.nonzero(remaining_cards)
+        # v = np.random.choice(id_v)
+        # c = np.random.choice(id_c)
         return v, c
 
     def is_last_round(self):
@@ -80,6 +89,7 @@ class AI_Game:
         #     return False
         return None
 
+    '''
     def usefl_cards(self):
         next_usefull = np.sum(self.tableMatrix, axis=0)
         next_usefull_cards = np.zeros((ut.NUM_VALUES, ut.NUM_COLORS), dtype=int)
@@ -91,9 +101,29 @@ class AI_Game:
 
         for i in range(ut.NUM_COLORS):
             for j in range(next_usefull[i]):
-                next_useless_cards[j][i] = 1
+                next_useless_cards[j][i] = 0
 
         return next_usefull_cards, next_useless_cards
+    '''
+    def usefl_cards(self):
+        next_usefull = np.sum(self.tableMatrix, axis=0)
+        next_usefull_cards = np.zeros((ut.NUM_VALUES, ut.NUM_COLORS), dtype=int)
+        # next_useless_cards = - np.ones((ut.NUM_VALUES, ut.NUM_COLORS), dtype=int)
+        point_matrix = ut.get_pointMatrix()
+        rem_cards = self.remaining_cards()
+        useful_points = ((self.startMatrix - rem_cards) / self.startMatrix) * point_matrix
+        next_useless_cards = useful_points / ( 5* np.ones((ut.NUM_VALUES, ut.NUM_COLORS), dtype=int))
+
+        for i in range(ut.NUM_COLORS):
+            if next_usefull[i] != 5:
+                next_usefull_cards[next_usefull[i]][i] = 1
+                # next_useless_cards[next_usefull[i]][i] = 0
+
+        for i in range(ut.NUM_COLORS):
+            for j in range(next_usefull[i]):
+                next_useless_cards[j][i] = 0
+
+        return next_usefull_cards, - next_useless_cards
 
     def eval(self):
         if self.storm_tokens >= 3:
@@ -116,31 +146,43 @@ class AI_Game:
     def get_current_player(self):
         return self.get_player(self.current_player)
 
-    def eval_action(self, action, prob):
-        current_points = np.sum(self.tableMatrix)
+    def isGameOver(self):
+        if self.storm_tokens == 3:
+            return True, 0
+        #if self.is_last_round():
+        #    return True, np.sum(self.tableMatrix)
+        else:
+            return False, np.sum(self.tableMatrix)
 
-        def eval_state(ok):
-            if action[0] == 'play':
-                if ok:
-                    return current_points+1
-                else:
-                    return current_points
-            elif action[0] == 'discard':
-                if self.note_tokens == 0:
-                    return -1
-                elif ok:
-                    return current_points+0.3
-                else:
-                    return current_points-0.3
-            elif action[0] == 'hint':
-                if self.note_tokens == 8:
-                    return -1
-                elif ok:
-                    return current_points+0.1
-                else:
-                    return current_points
+    def execute_action(self,action):
+        current_player = self.get_current_player()
+        if action[1] == 'play':
+            # questo più o meno. In realtà io non so che carta ho in mano. Come la gioco?
 
-        return prob*eval_state(True)+(1-prob)*eval_state(False)
+            card = current_player.hand[action[2]]
+            self.play(card)
+            current_player.throw_card(action[2])
+
+            # questo più o meno. In realtà io non dovrei dare una carta se sono me stesso?
+            v, c = self.extract_card()
+            if v != -1:
+                current_player.give_card(Card(-1, v + 1, ut.inv_colors[c]))
+            self.next_turn()
+        elif action[1] == 'discard':
+            # questo più o meno. In realtà io non so che carta ho in mano. Come la gioco?
+            card = current_player.hand[action[2]]
+            self.discard(card)
+            current_player.throw_card(action[2])
+            # questo più o meno. In realtà io non dovrei dare una carta se sono me stesso?
+            v, c = self.extract_card()
+            if v != -1:
+                current_player.give_card(Card(-1, v + 1, ut.inv_colors[c]))
+            self.next_turn()
+        elif action[1] == 'hint':
+            pos = self.get_player(action[4]).get_hint_positions(action[2],action[3])
+            self.get_player(action[4]).hint(action[2],action[3], pos)
+            self.note_tokens += 1
+            self.next_turn()
 
 
 class MCTS_Hanabi_Node(State):
@@ -159,36 +201,29 @@ class MCTS_Hanabi_Node(State):
             av_actions.append(self.execute_action(action))
         return av_actions
 
-    def eval(self):
+    '''def eval(self):
         return self.game.eval()
+    '''
+
+
+    def eval(self):
+        new_game = deepcopy(self.game)
+        score = 0
+
+        for i in range(0) :
+        #while True
+            stop, score = new_game.isGameOver()
+            if stop:
+                return score
+            best_action = new_game.get_current_player().action(new_game)[0]
+            new_game.execute_action(best_action)
+        score = new_game.eval()
+        return score
+
 
     def execute_action(self,action):
         new_game = deepcopy(self.game)
-        current_player = new_game.get_current_player()
-
-        if action[1] == 'play':
-            # questo più o meno. In realtà io non so che carta ho in mano. Come la gioco?
-            card = current_player.hand[action[2]]
-            new_game.play(card)
-            current_player.throw_card(action[2])
-
-            # questo più o meno. In realtà io non dovrei dare una carta se sono me stesso?
-            v, c = new_game.extract_card()
-            if v != -1:
-                current_player.give_card(Card(-1, v + 1, ut.inv_colors[c]))
-        elif action[1] == 'discard':
-            # questo più o meno. In realtà io non so che carta ho in mano. Come la gioco?
-            card = current_player.hand[action[2]]
-            new_game.discard(card)
-            current_player.throw_card(action[2])
-            # questo più o meno. In realtà io non dovrei dare una carta se sono me stesso?
-            v, c = new_game.extract_card()
-            if v != -1:
-                current_player.give_card(Card(-1, v + 1, ut.inv_colors[c]))
-        elif action[1] == 'hint':
-            new_game.hint(action[2], action[3], action[4])
-
-        new_game.next_turn()
+        new_game.execute_action(action)
         return MCTS_Hanabi_Node(action,new_game,self.root_player)
 
     def enter_node(self, player):
