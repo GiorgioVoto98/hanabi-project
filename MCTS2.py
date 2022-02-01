@@ -2,16 +2,26 @@ from __future__ import annotations
 from copy import deepcopy
 import os
 import numpy as np
+import random
 import time
 
 from action import Action
 
 
 def MCTS2(game, num_iterations=50):
+    print("Candidates:")
+    candidates = game.get_current_player().best_actions(game)
+    for c in candidates:
+        print(c.cmd_string())
+
+
     root_player = game.current_player
     root = Hanabi_Node(game, root_player, parent_action=None, parent=None)
 
-    for _ in range(num_iterations):
+    start_t = time.time()
+    iterations = 0
+    while True:
+    # for _ in range(num_iterations):
         if not root.game.get_current_player().redeterminize(root.game):
             print("weird")
             os._exit(2)
@@ -19,7 +29,8 @@ def MCTS2(game, num_iterations=50):
         node = root
 
         # SELECTION (tree traversal)
-        while len(node.children) != 0 and len(node.actions_to_try) == 0:  # until terminal or not fully expanded node
+        # until terminal or not fully expanded node
+        while len(node.children) != 0 and len(node.actions_to_try) == 0:
             node = node.selection()
 
         # EXPANSION        
@@ -31,9 +42,18 @@ def MCTS2(game, num_iterations=50):
 
         # BACKPROPAGATION
         node.backpropagate(score)
-            
+
+        duration = time.time() - start_t
+        iterations += 1
+        if duration > 1:
+            break    
+    print("Number of iteration:", iterations)
+
     # Return most promising move from root (highest score)
     best_node = max(root.children, key=lambda x: x.total_score/x.num_visits)
+
+    print("CHOSEN:")        
+    print(best_node.parent_action.cmd_string())
     return best_node.parent_action
 
 
@@ -41,7 +61,7 @@ class Hanabi_Node():
     def __init__(self, game, root_player, parent_action: Action, parent: Hanabi_Node):
         self.game = deepcopy(game)
         self.root_player = root_player
-        self.parent_action = deepcopy(parent_action)
+        self.parent_action = parent_action
         self.parent = parent
         self.total_score = 0
         self.num_visits = 0
@@ -81,14 +101,13 @@ class Hanabi_Node():
         return max(self.children, key=UCB1)
 
     def expand(self):
-        idx = np.random.choice(list(range(len(self.actions_to_try))))
-        action = deepcopy(self.actions_to_try[idx])
+        idx = random.randrange(len(self.actions_to_try))
+        action = self.actions_to_try.pop(idx)
         new_game = deepcopy(self.game)
         new_game.execute_action(action)
 
         child = Hanabi_Node(new_game, self.root_player, action, self)
         self.children.append(child)
-        self.actions_to_try.pop(idx)
 
         return child
 
