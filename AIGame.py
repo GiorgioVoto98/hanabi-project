@@ -8,6 +8,7 @@ from MCTS2 import MCTS2
 from game import Card
 from AIPlayer import AI_Player
 from action import Action
+import os
 
 class AI_Game:
     def __init__(self, storm_tokens, note_tokens, table, discarded, players, current_player):
@@ -159,7 +160,8 @@ class AI_Game:
         num_cards_players = 0
         for p in self.players:
             num_cards_players += len(p.hintMatrix)
-        if self.is_last_round() and num_cards_players == ((self.max_hand_size-1) * len(self.players)):
+        
+        if self.is_last_round() and num_cards_players <= ((self.max_hand_size-1) * len(self.players)):
             return True, score
         else:
             return False, score
@@ -167,28 +169,36 @@ class AI_Game:
     def execute_action(self, action: Action):
         current_player = self.get_current_player()
 
+        if action.action == 'play' or action.action == 'discard':
+            if action.value >= len(current_player.hand):
+                    print(action.value)
+                    print(current_player.hand)
+                    os._exit(10)
+
         if action.action == 'play':
-            # if action.value >= len(current_player.hand):
-            #     print(action.value)
-            #     print(current_player.hand)
             card = current_player.hand[action.value]
             self.play(card)
             current_player.throw_card(action.value)
 
-            v, c = self.extract_card()
-            if v != -1:
-                current_player.give_card(Card(-1, v + 1, ut.inv_colors[c]))
+            if not self.is_last_round():
+                v, c = self.extract_card()
+                if v != -1:
+                    current_player.give_card(Card(-1, v + 1, ut.inv_colors[c]))
+                else:
+                    os._exit(3)
+                    
         elif action.action == 'discard':
-            # if action.value >= len(current_player.hand):
-            #     print(action.value)
-            #     print(current_player.hand)
             card = current_player.hand[action.value]
             self.discard(card)
             current_player.throw_card(action.value)
 
-            v, c = self.extract_card()
-            if v != -1:
-                current_player.give_card(Card(-1, v + 1, ut.inv_colors[c]))
+            if not self.is_last_round():
+                v, c = self.extract_card()
+                if v != -1:
+                    current_player.give_card(Card(-1, v + 1, ut.inv_colors[c]))
+                else:
+                    os._exit(9)
+
         elif action.action == 'hint':
             self.hint(action.type, action.value, action.dest)
         
@@ -245,9 +255,9 @@ class MCTS_Hanabi_Node(State):
 
 def MCTS_algo(game, root_player):
     if root_player == game.current_player:
-        mcts = MCTS(MCTS_Hanabi_Node(None,game,root_player))
-        return mcts.best_action()
-        # return MCTS2(game)
+        # mcts = MCTS(MCTS_Hanabi_Node(None,game,root_player))
+        # return mcts.best_action()
+        return MCTS2(game)
     return False
 
 

@@ -2,24 +2,28 @@ from __future__ import annotations
 from copy import deepcopy
 import os
 import numpy as np
+import time
 
 from action import Action
-import utils as ut
 
-def MCTS2(game, num_iterations=200):
-    # the player in the node is the one who did the previous move
+
+def MCTS2(game, num_iterations=50):
     root_player = game.current_player
     root = Hanabi_Node(game, root_player, parent_action=None, parent=None)
-        
+
     for _ in range(num_iterations):
+        if not root.game.get_current_player().redeterminize(root.game):
+            print("weird")
+            os._exit(2)
+
         node = root
 
         # SELECTION (tree traversal)
-        while len(node.children) != 0 and len(node.states_to_try) == 0:  # until terminal or not fully expanded node
+        while len(node.children) != 0 and len(node.actions_to_try) == 0:  # until terminal or not fully expanded node
             node = node.selection()
 
         # EXPANSION        
-        if len(node.states_to_try) > 0:
+        if len(node.actions_to_try) > 0:
             node = node.expand()
 
         # SIMULATION (ROLLOUT)
@@ -37,33 +41,23 @@ class Hanabi_Node():
     def __init__(self, game, root_player, parent_action: Action, parent: Hanabi_Node):
         self.game = deepcopy(game)
         self.root_player = root_player
-        self.parent_action = parent_action
+        self.parent_action = deepcopy(parent_action)
         self.parent = parent
         self.total_score = 0
         self.num_visits = 0
-        self.states_to_try = self.next_states()
+        self.actions_to_try = self.next_actions()
         self.children = []
 
-    def next_states(self):
+    def next_actions(self):
         end, _ = self.game.is_game_over()
         if end:
-            print("game over")
             return []
 
-        next_states = []
         player = self.game.get_current_player()
-        
         self.exit_node(player)
-        
         actions = player.best_actions(self.game)
-        # for action in actions:
-        #     new_game = deepcopy(self.game)
-        #     new_game.execute_action(action)
-        #     next_states.append((new_game, action))
-
         self.enter_node(player)
 
-        # return next_states
         return actions
 
     def enter_node(self, player):
@@ -87,33 +81,31 @@ class Hanabi_Node():
         return max(self.children, key=UCB1)
 
     def expand(self):
-        idx = np.random.choice(list(range(len(self.states_to_try))))
-        # new_game, action = self.states_to_try[idx]
-
-        action = deepcopy(self.states_to_try[idx])
+        idx = np.random.choice(list(range(len(self.actions_to_try))))
+        action = deepcopy(self.actions_to_try[idx])
         new_game = deepcopy(self.game)
         new_game.execute_action(action)
-        
+
         child = Hanabi_Node(new_game, self.root_player, action, self)
         self.children.append(child)
-
-        self.states_to_try.pop(idx)
+        self.actions_to_try.pop(idx)
 
         return child
 
     def simulate(self):
-        temp_game = deepcopy(self.game)
+        # return np.random.randint(0, 26)
         
-        # return np.random.randint(0, 25)
-
+        # start = time.time()
+        temp_game = deepcopy(self.game)
         while True:
             end, score = temp_game.is_game_over()
             if end:
+                # end = time.time()
+                # print("Sim time:", end-start)
                 return score
             player = temp_game.get_current_player()
-            actions = player.best_actions(temp_game)
-            random_action = np.random.choice(actions)
-            temp_game.execute_action(random_action)
+            best_action = player.action(temp_game)
+            temp_game.execute_action(best_action)
 
 
     def backpropagate(self, score):
