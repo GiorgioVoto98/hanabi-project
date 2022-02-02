@@ -8,15 +8,17 @@ import time
 from action import Action
 
 
-def MCTS2(game, num_iterations=50):
-    print("Candidates:")
+def MCTS2(game, num_iterations=300, seconds=1):
+    print("CANDIDATES:")
     candidates = game.get_current_player().best_actions(game)
     for c in candidates:
-        print(c.cmd_string())
-
+        print('\t', c.cmd_string())
 
     root_player = game.current_player
     root = Hanabi_Node(game, root_player, parent_action=None, parent=None)
+
+    if len(root.actions_to_try) == 1:
+        return root.actions_to_try[0]
 
     start_t = time.time()
     iterations = 0
@@ -45,15 +47,17 @@ def MCTS2(game, num_iterations=50):
 
         duration = time.time() - start_t
         iterations += 1
-        if duration > 1:
+        if duration > seconds:
             break    
-    print("Number of iteration:", iterations)
+    print("Number of iterations:", iterations)
 
     # Return most promising move from root (highest score)
     best_node = max(root.children, key=lambda x: x.total_score/x.num_visits)
 
-    print("CHOSEN:")        
-    print(best_node.parent_action.cmd_string())
+    print("CHOSEN:", best_node.parent_action.cmd_string())
+
+    stats(root)
+
     return best_node.parent_action
 
 
@@ -93,15 +97,17 @@ class Hanabi_Node():
 
     def selection(self):
         def UCB1(node):
-            c = np.sqrt(2)
+            # C = np.sqrt(2)
+            C = 0.1
             exploitation = node.total_score / node.num_visits
-            exploration = c * np.sqrt(np.log(node.parent.num_visits) / node.num_visits)
+            exploration = C * np.sqrt(np.log(node.parent.num_visits) / node.num_visits)
             return exploitation + exploration
         
         return max(self.children, key=UCB1)
 
     def expand(self):
-        idx = random.randrange(len(self.actions_to_try))
+        # idx = random.randrange(len(self.actions_to_try))
+        idx = 0
         action = self.actions_to_try.pop(idx)
         new_game = deepcopy(self.game)
         new_game.execute_action(action)
@@ -113,19 +119,26 @@ class Hanabi_Node():
 
     def simulate(self):
         # return np.random.randint(0, 26)
+        # return self.game.eval()
         
         # start = time.time()
         temp_game = deepcopy(self.game)
-        while True:
+        num_play = 0
+        for _ in range(2):
+        # while True:
+        # while num_play <= 4:
             end, score = temp_game.is_game_over()
             if end:
                 # end = time.time()
                 # print("Sim time:", end-start)
-                return score
+                return score / 25
             player = temp_game.get_current_player()
             best_action = player.action(temp_game)
             temp_game.execute_action(best_action)
-
+            
+            # if best_action.action == "play":
+                # num_play += 1
+        return temp_game.eval() / 25
 
     def backpropagate(self, score):
         node = self
@@ -134,3 +147,18 @@ class Hanabi_Node():
             node.num_visits += 1
             node = node.parent
 
+
+def stats(node: Hanabi_Node):
+    def UCB1(node):
+        # C = np.sqrt(2)
+        C = 0.1
+        exploitation = node.total_score / node.num_visits
+        exploration = C * np.sqrt(np.log(node.parent.num_visits) / node.num_visits)
+        return exploitation + exploration
+
+    print(f'LEFT: {len(node.actions_to_try)}, VISITED: {len(node.children)}')
+    for c in node.children:
+        print(f'{c.parent_action.cmd_string()}-> UCB: {UCB1(c):.2f}, avg_score: {c.total_score/c.num_visits:.2f}, total: {c.total_score:.2f}, num_visits: {c.num_visits}')
+        print(f'\tLEFT: {len(c.actions_to_try)}, VISITED: {len(c.children)}')
+        for cc in c.children:
+            print(f'\t{cc.parent_action.cmd_string()}\t\t-> UCB: {UCB1(cc):.2f}, avg_score: {cc.total_score/cc.num_visits:.2f}, total: {cc.total_score:.2f}, num_visits: {cc.num_visits}')
