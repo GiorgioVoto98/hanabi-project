@@ -5,6 +5,7 @@ from threading import Thread
 from time import sleep
 import os
 import socket
+import argparse
 import numpy as np
 
 import GameData
@@ -12,32 +13,39 @@ from constants import *
 from game import Player
 from AIGame import AI_Game, MCTS_algo
 from AIPlayer import AI_Player
-from action import Action
 import utils as ut
 
-AI = True
 AUTOMATIC = True
 MCTS = True
-NUM_GAMES = 10
+NUM_GAMES = 5
 
-if len(argv) < 4:
-    print("You need the player name to start the game.")
-    # exit(-1)
-    playerName = "Test"  # For debug
-    ip = HOST
-    port = PORT
+parser = argparse.ArgumentParser(prog='client.py')
+parser.add_argument('--ip', type=str, default=HOST, help='IP address of the host')
+parser.add_argument('--port', type=int, default=PORT, help='Port of the server')
+parser.add_argument('--name', type=str, help='Name of the player', required=True)
+parser.add_argument('--time', type=float, default=1.0, help='Maximum time per action')
+mode = parser.add_mutually_exclusive_group(required=True)
+mode.add_argument('--ai', action='store_true', help='AI player')
+mode.add_argument('--human', action='store_true', help='Human player')
+
+args = parser.parse_args()
+
+ip = args.ip
+port = args.port
+playerName = args.name
+time_limit = args.time
+if args.ai:
+    AI = True
 else:
-    playerName = argv[3]
-    ip = argv[1]
-    port = int(argv[2])
+    AI = False
 
 run = True
 statuses = ["Lobby", "Game"]
 status = statuses[0]
 
 ai_game = None
-ai_players = []#: List[AI_Player] = []
-current_player = ""#: str = ""
+ai_players = []
+current_player = ""
 
 
 def get_player(name) -> AI_Player:
