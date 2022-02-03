@@ -78,14 +78,10 @@ class AI_Player:
 
         for i in range(len(self.hintMatrix)):
             mat = remaining_cards * self.hintMatrix[i]
-            if math.isclose(np.sum(mat),0):
+            if math.isclose(np.sum(mat), 0):
                 hand_probability.append(self.hintMatrix[i])
             else:
                 hand_probability.append(mat / np.sum(mat))
-            if math.isclose(np.sum(mat),0):
-                i = 1
-
-
 
         return hand_probability
 
@@ -94,6 +90,8 @@ class AI_Player:
         useful_probs = []
         usefull_cards = game.usefl_cards()
         hand_probability = self.__get_hand_probs(game)
+        if len(hand_probability) == 0:
+            i = 1
         for i in range(len(hand_probability)):
             mat = hand_probability[i] * usefull_cards
             useful_probs.append(np.sum(mat))
@@ -171,15 +169,15 @@ class AI_Player:
             for i in range(len(useful_prob)):
                 if (useful_prob[i] < 0.6) and (old_game.storm_tokens == 0):
                     new_card_value = old_game.get_points(hand_prob[i])
-                    res = 1 - np.sum(old_card_value - new_card_value) / np.sum((old_card_value))
+                    res = 1 - np.sum(old_card_value - new_card_value) / np.sum(old_card_value)
                     update_best_actions(Action('discard', value=i), res)
-                elif (useful_prob[i] < 0.65) and (old_game.storm_tokens == 1):
+                elif (useful_prob[i] < 0.7) and (old_game.storm_tokens == 1):
                     new_card_value = old_game.get_points(hand_prob[i])
-                    res = 1 - np.sum(old_card_value - new_card_value) / np.sum((old_card_value))
+                    res = 1 - np.sum(old_card_value - new_card_value) / np.sum(old_card_value)
                     update_best_actions(Action('discard', value=i), res)
-                elif (useful_prob[i] < 0.7):
+                elif (useful_prob[i] < 0.9):
                     new_card_value = old_game.get_points(hand_prob[i])
-                    res = 1 - np.sum(old_card_value - new_card_value) / np.sum((old_card_value))
+                    res = 1 - np.sum(old_card_value - new_card_value) / np.sum(old_card_value)
                     update_best_actions(Action('discard', value=i), res)
 
         if old_game.note_tokens < 8:
@@ -187,32 +185,33 @@ class AI_Player:
                 if player.name == self.name:
                     continue
                 useful_prob = player.__play_vector(old_game)
-                confidence = np.max(useful_prob)
-                hinted_values = []
-                hinted_colors = []
+                if len(useful_prob) != 0:
+                    confidence = np.max(useful_prob)
+                    hinted_values = []
+                    hinted_colors = []
 
-                for card in player.hand:
-                    # if old_game.is_playable(card):
-                        if card.value not in hinted_values:
-                            hinted_values.append(card.value)
-                            new_player = deepcopy(player)
-                            positions = new_player.get_hint_positions('value', card.value)
-                            new_player.hint('value', card.value, positions)
-                            new_useful_prob = new_player.__play_vector(old_game)
-                            new_confidence = np.max(new_useful_prob)
-                            action = Action('hint', type='value', value=card.value, dest=player.name)
-                            res = new_confidence - confidence # old_game.eval_action(action, new_confidence - confidence)
-                            update_best_actions(action, res)
-                        if card.color not in hinted_colors:
-                            hinted_colors.append(card.color)
-                            new_player = deepcopy(player)
-                            positions = new_player.get_hint_positions('color', card.color)
-                            new_player.hint('color', card.color, positions)
-                            new_useful_prob = new_player.__play_vector(old_game)
-                            new_confidence = np.max(new_useful_prob)
-                            action = Action('hint', type='color', value=card.color, dest=player.name)
-                            res = new_confidence - confidence # old_game.eval_action(action, new_confidence - confidence)
-                            update_best_actions(action, res)                            
+                    for card in player.hand:
+                        # if old_game.is_playable(card):
+                            if card.value not in hinted_values:
+                                hinted_values.append(card.value)
+                                new_player = deepcopy(player)
+                                positions = new_player.get_hint_positions('value', card.value)
+                                new_player.hint('value', card.value, positions)
+                                new_useful_prob = new_player.__play_vector(old_game)
+                                new_confidence = np.max(new_useful_prob)
+                                action = Action('hint', type='value', value=card.value, dest=player.name)
+                                res = new_confidence - confidence # old_game.eval_action(action, new_confidence - confidence)
+                                update_best_actions(action, res)
+                            if card.color not in hinted_colors:
+                                hinted_colors.append(card.color)
+                                new_player = deepcopy(player)
+                                positions = new_player.get_hint_positions('color', card.color)
+                                new_player.hint('color', card.color, positions)
+                                new_useful_prob = new_player.__play_vector(old_game)
+                                new_confidence = np.max(new_useful_prob)
+                                action = Action('hint', type='color', value=card.color, dest=player.name)
+                                res = new_confidence - confidence # old_game.eval_action(action, new_confidence - confidence)
+                                update_best_actions(action, res)
         # Sort best_action based on score
         best_actions = [action for _, action in sorted(zip(best_scores, best_actions), key=lambda tup: tup[0] ,reverse=True)]
         

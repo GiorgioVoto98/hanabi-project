@@ -17,7 +17,7 @@ import utils as ut
 
 AUTOMATIC = True
 MCTS = True
-NUM_GAMES = 5
+NUM_GAMES = 30
 
 parser = argparse.ArgumentParser(prog='client.py')
 parser.add_argument('--ip', type=str, default=HOST, help='IP address of the host')

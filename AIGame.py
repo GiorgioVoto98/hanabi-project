@@ -283,7 +283,7 @@ def MCTS_algo(game, root_player):
     if root_player == game.current_player:
         mcts = MCTS(MCTS_Hanabi_Node(None,game,root_player))
         return mcts.best_action()
-        # return MCTS2(game)
+        #return MCTS2(game)
     return False
 
 
