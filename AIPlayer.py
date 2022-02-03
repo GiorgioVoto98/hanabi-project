@@ -90,8 +90,6 @@ class AI_Player:
         useful_probs = []
         usefull_cards = game.usefl_cards()
         hand_probability = self.__get_hand_probs(game)
-        if len(hand_probability) == 0:
-            i = 1
         for i in range(len(hand_probability)):
             mat = hand_probability[i] * usefull_cards
             useful_probs.append(np.sum(mat))

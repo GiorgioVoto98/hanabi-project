@@ -40,7 +40,7 @@ class MCTS:
             for child_state in State.childrens:
                 UCB = 1e6
                 if child_state.nexp != 0:
-                    UCB = (child_state.totalVal / child_state.nexp) + 2 * (math.log(State.nexp) / child_state.nexp)
+                    UCB = (child_state.totalVal / child_state.nexp) + 0.1 * math.sqrt(math.log(State.nexp) / child_state.nexp)
                 if UCB > UCB_chosen:
                     UCB_chosen = UCB
                     child_chosen = child_state
