@@ -132,14 +132,14 @@ class Hanabi_Node():
             if end:
                 # end = time.time()
                 # print("Sim time:", end-start)
-                return temp_game.eval() / 25
+                return temp_game.eval()
             player = temp_game.get_current_player()
             best_action = player.action(temp_game)
             temp_game.execute_action(best_action)
             
             # if best_action.action == "play":
                 # num_play += 1
-        return temp_game.eval() / 25
+        return temp_game.eval()
 
     def backpropagate(self, score):
         node = self
