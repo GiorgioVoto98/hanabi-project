@@ -6,6 +6,7 @@ NUM_COLORS = 5
 NUM_VALUES = 5
 MAX_ACTIONS = 7
 
+
 def selRow(row):
     matrix = np.zeros((NUM_VALUES, NUM_COLORS))
     matrix[row, :] = np.ones((1, NUM_COLORS))

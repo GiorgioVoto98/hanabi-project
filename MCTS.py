@@ -52,14 +52,9 @@ class MCTS:
                 break
             self.execute(self.startState)
         
-        child_chosen = None
-        best_res = -1
-        for child in self.startState.children:
-            avg_res = child.totalVal/child.nexp
-            if avg_res > best_res:
-                best_res = avg_res
-                child_chosen = child
-        return child_chosen.parent_action
+        best_node = max(self.startState.children, key=lambda x: x.totalVal/x.nexp)
+
+        return best_node.parent_action
 
 
 class MCTSHanabiNode:

@@ -113,58 +113,54 @@ class AI_Player:
         best_scores = []
 
         def update_best_actions(action: Action, score):
-            if (len(best_actions) == 0) or (score != 0):
+            if len(best_actions) == 0 or score != 0:
                 if len(best_actions) < ut.MAX_ACTIONS:
                     best_scores.append(score)
                     best_actions.append(action)
                 elif len(best_actions) == ut.MAX_ACTIONS:
-                    worst_score = min(best_scores)
-                    if score > worst_score:
-                        for i in range(ut.MAX_ACTIONS):
-                            if best_scores[i] == worst_score:
-                                best_actions.pop(i)
-                                best_scores.pop(i)
-                                best_actions.append(action)
-                                best_scores.append(score)
-                                break
+                    idx_worst = np.argmin(best_scores)
+                    if score > best_scores[idx_worst]:          
+                        best_scores[idx_worst] = score
+                        best_actions[idx_worst] = action
 
         useful_prob = self.__play_vector(old_game)
 
         # PLAY       
         for i in range(len(useful_prob)):
-            if useful_prob[i] >= 0.6 and old_game.storm_tokens == 0:
-                res = useful_prob[i]
-                update_best_actions(Action("play", value=i), res)
-            elif useful_prob[i] >= 0.7 and old_game.storm_tokens == 1:
-                res = useful_prob[i]
-                update_best_actions(Action("play", value=i), res)
-            elif useful_prob[i] >= 0.9:
-                res = useful_prob[i]
-                update_best_actions(Action("play", value=i), res)
+            res = useful_prob[i]
+            action = Action("play", value=i)
+            if res >= 0.6 and old_game.storm_tokens == 0:
+                update_best_actions(action, res)
+            elif res >= 0.7 and old_game.storm_tokens == 1:
+                update_best_actions(action, res)
+            elif res >= 0.9:
+                update_best_actions(action, res)
         
         # DISCARD
         hand_prob = self.__get_hand_probs(old_game)
         old_card_value = old_game.get_points()                
         if old_game.note_tokens > 0:
             for i in range(len(useful_prob)):
+                action = Action('discard', value=i)
                 if useful_prob[i] < 0.6 and old_game.storm_tokens == 0:
                     new_card_value = old_game.get_points(hand_prob[i])
                     res = 1 - np.sum(old_card_value - new_card_value) / np.sum(old_card_value)
-                    update_best_actions(Action('discard', value=i), res)
+                    update_best_actions(action, res)
                 elif useful_prob[i] < 0.7 and old_game.storm_tokens == 1:
                     new_card_value = old_game.get_points(hand_prob[i])
                     res = 1 - np.sum(old_card_value - new_card_value) / np.sum(old_card_value)
-                    update_best_actions(Action('discard', value=i), res)
+                    update_best_actions(action, res)
                 elif useful_prob[i] < 0.9:
                     new_card_value = old_game.get_points(hand_prob[i])
                     res = 1 - np.sum(old_card_value - new_card_value) / np.sum(old_card_value)
-                    update_best_actions(Action('discard', value=i), res)
+                    update_best_actions(action, res)
 
         # HINT
         if old_game.note_tokens < 8:
             for player in old_game.players:
                 if player.name == self.name:
                     continue
+
                 useful_prob = player.__play_vector(old_game)
                 if len(useful_prob) != 0:
                     confidence = np.max(useful_prob)
