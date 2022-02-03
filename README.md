@@ -90,15 +90,43 @@ We found that on average a **branching factor of 7** actions was the best perfor
 will be at the end of the game. The score is then normalized between 0 and 1. 
 
 
-Algorithm | 2 players | 3 players | 4 players | 5 players
---- | --- | --- | --- |--- 
-Custom RIS-MCTS | 0 | 0 | 0 | 0 
-
+Algorithm | Time | 2 players | 3 players | 4 players | 5 players
+--- | --- | --- | --- | --- |--- 
+Custom RIS-MCTS | 400 iterations | 0 | 0 | 0 | 0 
 
 
 ### Custom Heuristic
-.......................
 
+#### 1. Play
 
+The agent computes the probability of its hand by taking the remaining cards and the hint given from the other players on its cards.
+Based on this probabilities, he can choose to play if 
+- The game has 3 storm tokens left and the probability of be a good card is greater or equal than 0.6
+- The game has 2 storm tokens left and the probability of be a good card is greater or equal than 0.7
+- The game has 1 storm tokens left and the probability of be a good card is greater or equal than 0.9
+   
+#### 2. Discard
 
+If the card is not played, then the agent check if can be discardable.
+First of all, the agent check the potential value of the state `old_value`, which is the potential final result by considering the current state of the table and the discarded pile.
+
+The player that discards the card and then it evaluates again the potential value of the state `new_value`.
+The probability of discarding a card is the computed as `(old_value - new_value) / old_value`
+If discarding a card does not change the potential final result (e.g. discarding a card already on the table or a card of a color that cannot be reached), it has a very high probability to be discarded.
+
+#### 3. Hint
+
+For each card of each player in the game the agent evaluates the probability for the player to play a card (`confidence`).
+This is made by using the hints given to that player during the game and using the table information, the discarded pile and 
+all the other visible player cards except himself (and obviously the current_player).
+
+Having the probability that is seen by that player, the agent gives a value hint and the evaluates the new probability of playing for that player `new_confidence`.
+
+The probability of giving a hint is obtained with the formula: `new_confidence - confidence`.
+The same procedure is applied to the color hint. 
+
+#### 4. Best Actions
+
+All the possible actions are sorted by decreasing probability. 
+Depending on the branching factor `BF` we want to use, we select only the top `BF` actions. 
 
