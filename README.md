@@ -92,7 +92,7 @@ will be at the end of the game. The score is then normalized between 0 and 1.
 
 Algorithm | Time | 2 players | 3 players | 4 players | 5 players
 --- | --- | --- | --- | --- |--- 
-Custom RIS-MCTS | 400 iterations | 0 | 0 | 0 | 0 
+Custom RIS-MCTS | 400 iterations | 0 | 0 | 0 | 17.25 
 
 
 ### Custom Heuristic
