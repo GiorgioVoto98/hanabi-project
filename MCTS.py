@@ -1,46 +1,45 @@
 import math
-from multiprocessing.managers import State
+from copy import deepcopy
+
 
 class MCTS:
-    def __init__(self, State, iterations=400):
-        self.StartState = State
+    def __init__(self, state, iterations=400):
+        self.startState = state
         self.iterations = iterations
 
-    def execute(self, State):
-        if (State.nexp) == 0:
-            State.choosen()
-            res = State.eval()
-            State.totalVal += res
+    def execute(self, state):
+        if state.nexp == 0:
+            state.chosen()
+            res = state.eval()
+            state.totalVal += res
             return res
         else:
-            State.choosen()
-            if (len(State.childrens) == 0):
-                self._expand(State)
-            # valutare tra quelli presenti quale mi conviene scegliere
-            child_chosen = self._choose(State)
+            state.chosen()
+            if len(state.children) == 0:
+                self.expand(state)
+            child_chosen = self.choose(state)
             if child_chosen is not None:
                 res = self.execute(child_chosen)
-                State.totalVal += res
+                state.totalVal += res
                 return res
             else:
-                res = State.eval()
-                State.totalVal += res
+                res = state.eval()
+                state.totalVal += res
                 return res
 
-    def _expand(self, State):
-        av_actions = State.available_actions()
+    def expand(self, state):
+        av_actions = state.available_actions()
         for new_states in av_actions:
-            State.childrens.append(new_states)
-            # ho una serie di azioni che mi portano a nuovi stati
+            state.children.append(new_states)
 
-    def _choose(self, State):
+    def choose(self, state):
         child_chosen = None
         UCB_chosen = -1
-        if len(State.childrens) > 0:
-            for child_state in State.childrens:
+        if len(state.children) > 0:
+            for child_state in state.children:
                 UCB = 1e6
                 if child_state.nexp != 0:
-                    UCB = (child_state.totalVal / child_state.nexp) + 0.1 * math.sqrt(math.log(State.nexp) / child_state.nexp)
+                    UCB = (child_state.totalVal / child_state.nexp) + 0.1 * math.sqrt(math.log(state.nexp) / child_state.nexp)
                 if UCB > UCB_chosen:
                     UCB_chosen = UCB
                     child_chosen = child_state
@@ -48,35 +47,55 @@ class MCTS:
         return None
 
     def best_action(self):
-        for i in range(self.iterations):            
-            if not self.StartState.game.get_current_player().redeterminize(self.StartState.game):
+        for _ in range(self.iterations):            
+            if not self.startState.game.get_current_player().redeterminize(self.startState.game):
                 break
-            self.execute(self.StartState)
+            self.execute(self.startState)
+        
         child_chosen = None
         best_res = -1
-        for child in self.StartState.childrens:
+        for child in self.startState.children:
             avg_res = child.totalVal/child.nexp
             if avg_res > best_res:
                 best_res = avg_res
                 child_chosen = child
         return child_chosen.parent_action
 
-        # best_child = None
-        # for child in self.StartState.childrens:
 
-class State:
-    def __init__(self, parent_action):
+class MCTSHanabiNode:
+    def __init__(self, parent_action, game, root_player):
         self.parent_action = parent_action
-        self.childrens = []
+        self.game = deepcopy(game)
+        self.root_player = root_player
+        self.children = []
         self.totalVal = 0
         self.nexp = 0
 
-    def available_actions(self):
-        return (State)
-
-    def add_childrens(self, new_state):
-        self.childrens.append(new_state)
-
-    def choosen(self):
+    def chosen(self):
         self.nexp += 1
 
+    def available_actions(self):
+        player = self.game.get_current_player()
+        self.exit_node(player)
+        actions = player.best_actions(self.game)
+        self.enter_node(player)
+        av_actions = []
+        for action in actions:
+            av_actions.append(self.execute_action(action))
+        return av_actions
+
+    def eval(self):
+        return self.game.eval()
+
+    def execute_action(self, action):
+        new_game = deepcopy(self.game)
+        new_game.execute_action(action)
+        return MCTSHanabiNode(action, new_game, self.root_player)
+
+    def enter_node(self, player):
+        if self.root_player != player.name:
+            player.hand = player.real_hand
+
+    def exit_node(self, player):
+        if self.root_player != player.name:
+            player.redeterminize(self.game)

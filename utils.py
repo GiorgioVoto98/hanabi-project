@@ -4,7 +4,6 @@ colors = {'red': 0, 'blue': 1, 'yellow': 2, 'green': 3, 'white': 4}
 inv_colors = {0: 'red', 1: 'blue', 2: 'yellow', 3: 'green', 4: 'white'}
 NUM_COLORS = 5
 NUM_VALUES = 5
-TOT_CARDS = 50
 
 
 def selRow(row):
@@ -49,12 +48,6 @@ def get_startMatrix():
     startMatrix = np.ones((NUM_VALUES, NUM_COLORS), dtype=np.int32)
     startMatrix *= CARD_VALUES
     return startMatrix
-
-def get_pointMatrix():
-    #CARD_VALUES = np.array([1, 0.99, 0.98, 0.97, 0.96]).reshape((NUM_VALUES, 1))
-    point_matrix = np.ones((NUM_VALUES, NUM_COLORS))
-    #point_matrix *= CARD_VALUES
-    return point_matrix
 
 
 def get_tableMatrix(table):

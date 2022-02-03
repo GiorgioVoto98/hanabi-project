@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-from sys import argv, stdout
+from sys import stdout
 from threading import Thread
-from time import sleep
 import os
+from time import sleep
 import socket
 import argparse
 import numpy as np
@@ -16,8 +16,7 @@ from AIPlayer import AI_Player
 import utils as ut
 
 AUTOMATIC = True
-MCTS = True
-NUM_GAMES = 20
+NUM_GAMES = 1
 
 parser = argparse.ArgumentParser(prog='client.py')
 parser.add_argument('--ip', type=str, default=HOST, help='IP address of the host')
@@ -157,10 +156,7 @@ def agentAI():
             if current_player == playerName:
                 current_player == ""
 
-                if not MCTS:
-                    action = get_player(playerName).action(ai_game)        
-                else:
-                    action = MCTS_algo(ai_game, playerName)
+                action = MCTS_algo(ai_game, playerName)
 
                 if not AUTOMATIC:
                     input()
@@ -247,11 +243,11 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 # Update state of the game
                 update_ai_players(data.players, data.handSize)
                 ai_game = AI_Game(data.usedStormTokens,
-                                data.usedNoteTokens,
-                                data.tableCards,
-                                data.discardPile,
-                                ai_players,
-                                data.currentPlayer)
+                                  data.usedNoteTokens,
+                                  data.tableCards,
+                                  data.discardPile,
+                                  ai_players,
+                                  data.currentPlayer)
                 current_player = data.currentPlayer
 
         if type(data) is GameData.ServerActionInvalid:
@@ -259,7 +255,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             print("Invalid action performed. Reason:")
             print(data.message)
 
-        if type(data) is GameData.ServerActionValid: # discard
+        if type(data) is GameData.ServerActionValid:  # discard
             dataOk = True
             print("Action valid!")
             print("Current player: " + data.player)

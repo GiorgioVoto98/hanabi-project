@@ -1,19 +1,18 @@
 from copy import deepcopy
 import numpy as np
-import os
-from action import Action
 import math
 
 import utils as ut
 from utils import get_card_cell
+from action import Action
 from game import Card
 
 class AI_Player:
     def __init__(self, name, max_hand_size):
         self.name = name
-        self.hand = []
         self.max_hand_size = max_hand_size        
-        self.hintMatrix = [] # max_hand_size * [np.ones((ut.NUM_COLORS, ut.NUM_VALUES))]
+        self.hand = []
+        self.hintMatrix = []
 
     def give_card(self, card):
         assert len(self.hand) <= self.max_hand_size
@@ -49,7 +48,7 @@ class AI_Player:
         return positions
 
     def hint(self, type, value, positions):
-        # mental representation of your hand.
+        # mental representation of your hand
         if type == 'value':
             for pos in range(len(self.hintMatrix)):
                 if pos in positions:
@@ -85,7 +84,6 @@ class AI_Player:
 
         return hand_probability
 
-
     def __play_vector(self, game):
         useful_probs = []
         usefull_cards = game.usefl_cards()
@@ -95,23 +93,6 @@ class AI_Player:
             useful_probs.append(np.sum(mat))
 
         return useful_probs
-    '''
-
-    def __play_or_discard_vector(self, game):
-        useful_probs = []
-        useless_probs = []
-        usefull_cards, useless_cards = game.usefl_cards()
-        hand_probability = self.__get_hand_probs(game)
-        for i in range(len(hand_probability)):
-            mat = hand_probability[i] * usefull_cards
-            useful_probs.append(np.sum(mat))
-
-        for i in range(len(hand_probability)):
-            mat = hand_probability[i] * useless_cards
-            useless_probs.append(np.sum(mat))
-        return useful_probs, useless_probs
-    '''
-
 
     def redeterminize(self, game):
         self.real_hand = self.hand
@@ -132,7 +113,7 @@ class AI_Player:
 
         def update_best_actions(action, score):
             if (len(best_actions) == 0) or (score != 0):
-                MAX_ACTIONS = 8
+                MAX_ACTIONS = 7
                 if len(best_actions) < MAX_ACTIONS:
                     best_scores.append(score)
                     best_actions.append(action)
@@ -147,20 +128,21 @@ class AI_Player:
                                 best_scores.append(score)
                                 break
 
+        useful_prob = self.__play_vector(old_game)
 
-        useful_prob = self.__play_vector(old_game)        
+        # PLAY       
         for i in range(len(useful_prob)):
-
             if (useful_prob[i] >= 0.6) and (old_game.storm_tokens == 0):
-                res = useful_prob[i] #old_game.eval_action(action, useful_prob[i])
+                res = useful_prob[i]
                 update_best_actions(Action("play", value=i), res)
             elif (useful_prob[i] >= 0.7) and (old_game.storm_tokens == 1):
-                res = useful_prob[i] #old_game.eval_action(action, useful_prob[i])
+                res = useful_prob[i]
                 update_best_actions(Action("play", value=i), res)
             elif (useful_prob[i] >= 0.9) :
-                res = useful_prob[i] #old_game.eval_action(action, useful_prob[i])
+                res = useful_prob[i]
                 update_best_actions(Action("play", value=i), res)
-
+        
+        # DISCARD
         hand_prob = self.__get_hand_probs(old_game)
         old_card_value = old_game.get_points()                
         if old_game.note_tokens > 0:
@@ -178,6 +160,7 @@ class AI_Player:
                     res = 1 - np.sum(old_card_value - new_card_value) / np.sum(old_card_value)
                     update_best_actions(Action('discard', value=i), res)
 
+        # HINT
         if old_game.note_tokens < 8:
             for player in old_game.players:
                 if player.name == self.name:
@@ -189,7 +172,6 @@ class AI_Player:
                     hinted_colors = []
 
                     for card in player.hand:
-                        # if old_game.is_playable(card):
                             if card.value not in hinted_values:
                                 hinted_values.append(card.value)
                                 new_player = deepcopy(player)
@@ -198,7 +180,7 @@ class AI_Player:
                                 new_useful_prob = new_player.__play_vector(old_game)
                                 new_confidence = np.max(new_useful_prob)
                                 action = Action('hint', type='value', value=card.value, dest=player.name)
-                                res = new_confidence - confidence # old_game.eval_action(action, new_confidence - confidence)
+                                res = new_confidence - confidence
                                 update_best_actions(action, res)
                             if card.color not in hinted_colors:
                                 hinted_colors.append(card.color)
@@ -208,13 +190,13 @@ class AI_Player:
                                 new_useful_prob = new_player.__play_vector(old_game)
                                 new_confidence = np.max(new_useful_prob)
                                 action = Action('hint', type='color', value=card.color, dest=player.name)
-                                res = new_confidence - confidence # old_game.eval_action(action, new_confidence - confidence)
+                                res = new_confidence - confidence
                                 update_best_actions(action, res)
+        
         # Sort best_action based on score
         best_actions = [action for _, action in sorted(zip(best_scores, best_actions), key=lambda tup: tup[0] ,reverse=True)]
         
         return best_actions
-
 
     def action(self, game):
         return self.best_actions(game)[0]
