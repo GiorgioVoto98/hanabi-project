@@ -1,5 +1,4 @@
 from builtins import int
-from copy import deepcopy
 import numpy as np
 import utils as ut
 import os
@@ -46,16 +45,16 @@ class AI_Game:
         dest_player.hint(type, value, positions)
         self.note_tokens += 1
 
-    def remaining_cards(self, player_request = ""):
+    def remaining_cards(self, player_request=""):
         remaining = self.startMatrix - self.tableMatrix - self.discardedMatrix
         for player in self.players:
             if (player.name != self.current_player) and (player.name != player_request):
-                remaining = remaining - player.get_hand_martix()
+                remaining = remaining - player.get_hand_matrix()
         return remaining
 
-    def get_points(self, probs = None):
+    def get_points(self, probs=None):
         if probs is None:
-            probs = np.zeros((ut.NUM_VALUES,ut.NUM_COLORS))
+            probs = np.zeros((ut.NUM_VALUES, ut.NUM_COLORS))
         point_matrix = np.ones((ut.NUM_VALUES, ut.NUM_COLORS))
         remaining_cards = 0.8 * (self.startMatrix - self.discardedMatrix - probs) / self.startMatrix
         for col in range(ut.NUM_COLORS):
@@ -187,6 +186,3 @@ def MCTS_algo(game, root_player):
     root = MCTSHanabiNode(None, game, root_player)
     mcts = MCTS(root)
     return mcts.best_action()
-
-
-
