@@ -49,10 +49,12 @@ class MCTS:
 
     def best_action(self):
         start_t = time.time()
+        iterations = 0
 
         while True:
         # for _ in range(self.iterations):            
-            if not self.startState.game.get_current_player().redeterminize(self.startState.game):
+            iterations += 1
+            if (not self.startState.game.get_current_player().redeterminize(self.startState.game)) and (iterations >= 400):
                 break
             self.execute(self.startState)
 
