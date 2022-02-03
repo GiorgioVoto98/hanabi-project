@@ -54,12 +54,12 @@ class MCTS:
         while True:
         # for _ in range(self.iterations):            
             iterations += 1
-            if (not self.startState.game.get_current_player().redeterminize(self.startState.game)) and (iterations >= 400):
+            if (not self.startState.game.get_current_player().redeterminize(self.startState.game)):
                 break
             self.execute(self.startState)
 
             duration = time.time() - start_t
-            if duration > self.seconds:
+            if (duration > self.seconds) and (iterations >= 400):
                 break    
         
         best_node = max(self.startState.children, key=lambda x: x.totalVal/x.nexp)
