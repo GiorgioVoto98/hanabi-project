@@ -53,19 +53,23 @@ class AI_Game:
         return remaining
 
     def get_points(self, probs=None):
+        # @probs: MATRIX WITH PROBABILITIES OF LOSING A CARD
         if probs is None:
             probs = np.zeros((ut.NUM_VALUES, ut.NUM_COLORS))
         point_matrix = np.ones((ut.NUM_VALUES, ut.NUM_COLORS))
+        # REMAINING CARDS IN GAME: WE MULTIPLY PER 0.8 TO LOWER THE CONFIDENCE OF DISCARDING ("POTENTIAL VALUE")
         remaining_cards = 0.8 * (self.startMatrix - self.discardedMatrix - probs) / self.startMatrix
         for col in range(ut.NUM_COLORS):
             fact_col = 1.0
             for val in range(ut.NUM_VALUES):
                 if self.tableMatrix[val][col] == 1:
+                    # POINTS MADE FOR SURE
                     fact_col = 1.0
                     point_matrix[val][col] = 1.0
                 else:
                     point_matrix[val][col] = fact_col * remaining_cards[val][col]
                     if remaining_cards[val][col] > 1:
+                        # IT'S NOT SO TERRIBLE IF IT'S NOT THE LAST REMAINING CARDS...
                         fact_col = point_matrix[val][col] * 2.3
                     else:
                         fact_col = point_matrix[val][col]
@@ -178,7 +182,7 @@ class AI_Game:
         self.next_turn()
 
 
-def MCTS_algo(game, root_player):
+def MCTS_algo(game, root_player, time_limit):
     root = MCTSHanabiNode(None, game, root_player)
-    mcts = MCTS(root)
+    mcts = MCTS(root, time_limit)
     return mcts.best_action()

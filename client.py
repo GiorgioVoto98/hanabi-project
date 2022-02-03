@@ -156,7 +156,7 @@ def agentAI():
             if current_player == playerName:
                 current_player == ""
 
-                action = MCTS_algo(ai_game, playerName)
+                action = MCTS_algo(ai_game, playerName, time_limit)
 
                 if not AUTOMATIC:
                     input()

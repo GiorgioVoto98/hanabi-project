@@ -137,20 +137,25 @@ class AI_Player:
                 update_best_actions(action, res)
         
         # DISCARD
+        # GETTING HAND PROBABILITY
         hand_prob = self.__get_hand_probs(old_game)
+        # GETTING POINTS OF THE CURRENT GAME
         old_card_value = old_game.get_points()                
         if old_game.note_tokens > 0:
             for i in range(len(useful_prob)):
                 action = Action('discard', value=i)
                 if useful_prob[i] < 0.6 and old_game.storm_tokens == 0:
+                    # GETTING POINTS OF THE GAME, WHEN DISCARDING THAT CARD)
                     new_card_value = old_game.get_points(hand_prob[i])
                     res = 1 - np.sum(old_card_value - new_card_value) / np.sum(old_card_value)
                     update_best_actions(action, res)
                 elif useful_prob[i] < 0.7 and old_game.storm_tokens == 1:
+                    # GETTING POINTS OF THE GAME, WHEN DISCARDING THAT CARD)
                     new_card_value = old_game.get_points(hand_prob[i])
                     res = 1 - np.sum(old_card_value - new_card_value) / np.sum(old_card_value)
                     update_best_actions(action, res)
                 elif useful_prob[i] < 0.9:
+                    # GETTING POINTS OF THE GAME, WHEN DISCARDING THAT CARD)
                     new_card_value = old_game.get_points(hand_prob[i])
                     res = 1 - np.sum(old_card_value - new_card_value) / np.sum(old_card_value)
                     update_best_actions(action, res)
@@ -160,7 +165,7 @@ class AI_Player:
             for player in old_game.players:
                 if player.name == self.name:
                     continue
-
+                # GETTING THE PROBABILITY OF PLAYING A CARD IN THE CURRENT STATE FOR THAT PLAYER
                 useful_prob = player.__play_vector(old_game)
                 if len(useful_prob) != 0:
                     confidence = np.max(useful_prob)
@@ -173,6 +178,7 @@ class AI_Player:
                             new_player = deepcopy(player)
                             positions = new_player.get_hint_positions('value', card.value)
                             new_player.hint('value', card.value, positions)
+                            # GETTING THE PROBABILITY OF PLAYING A CARD IN THE CURRENT STATE FOR THAT PLAYER AFTER HINT VALUE
                             new_useful_prob = new_player.__play_vector(old_game)
                             new_confidence = np.max(new_useful_prob)
                             action = Action('hint', type='value', value=card.value, dest=player.name)
@@ -183,6 +189,7 @@ class AI_Player:
                             new_player = deepcopy(player)
                             positions = new_player.get_hint_positions('color', card.color)
                             new_player.hint('color', card.color, positions)
+                            # GETTING THE PROBABILITY OF PLAYING A CARD IN THE CURRENT STATE FOR THAT PLAYER AFTER HINT VALUE
                             new_useful_prob = new_player.__play_vector(old_game)
                             new_confidence = np.max(new_useful_prob)
                             action = Action('hint', type='color', value=card.color, dest=player.name)
