@@ -2,7 +2,7 @@ import math
 from multiprocessing.managers import State
 
 class MCTS:
-    def __init__(self, State, iterations=300):
+    def __init__(self, State, iterations=400):
         self.StartState = State
         self.iterations = iterations
 
@@ -34,14 +34,14 @@ class MCTS:
         for child_state in State.childrens:
             UCB = 1e6
             if child_state.nexp != 0:
-                UCB = (child_state.totalVal / child_state.nexp) + 2 * (math.log(self.StartState.nexp) / child_state.nexp)
+                UCB = (child_state.totalVal / child_state.nexp) + 2 * (math.log(State.nexp) / child_state.nexp)
             if UCB > UCB_chosen:
                 UCB_chosen = UCB
                 child_chosen = child_state
         return child_chosen
 
     def best_action(self):
-        for i in range(self.iterations):
+        for i in range(self.iterations):            
             if not self.StartState.game.get_current_player().redeterminize(self.StartState.game):
                 break
             self.execute(self.StartState)

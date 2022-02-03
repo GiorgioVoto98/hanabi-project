@@ -2,6 +2,7 @@ from copy import deepcopy
 import numpy as np
 import os
 from action import Action
+import math
 
 import utils as ut
 from utils import get_card_cell
@@ -10,9 +11,9 @@ from game import Card
 class AI_Player:
     def __init__(self, name, max_hand_size):
         self.name = name
-        self.max_hand_size = max_hand_size
         self.hand = []
-        self.hintMatrix = []
+        self.max_hand_size = max_hand_size        
+        self.hintMatrix = [] # max_hand_size * [np.ones((ut.NUM_COLORS, ut.NUM_VALUES))]
 
     def give_card(self, card):
         assert len(self.hand) <= self.max_hand_size
@@ -77,15 +78,28 @@ class AI_Player:
 
         for i in range(len(self.hintMatrix)):
             mat = remaining_cards * self.hintMatrix[i]
-            # if np.sum(mat) == 0:
-            #     with open(f'{self.name}.txt', 'a') as f:
-            #         print(remaining_cards, file=f)
-            #         print(self.hintMatrix[i], file=f)
-            #         print(mat / np.sum(mat), file=f)
-            #         print("", file=f)
-            #     os._exit(3)
-            hand_probability.append(mat / np.sum(mat))
+            if math.isclose(np.sum(mat),0):
+                hand_probability.append(self.hintMatrix[i])
+            else:
+                hand_probability.append(mat / np.sum(mat))
+            if math.isclose(np.sum(mat),0):
+                i = 1
+
+
+
         return hand_probability
+
+
+    def __play_vector(self, game):
+        useful_probs = []
+        usefull_cards = game.usefl_cards()
+        hand_probability = self.__get_hand_probs(game)
+        for i in range(len(hand_probability)):
+            mat = hand_probability[i] * usefull_cards
+            useful_probs.append(np.sum(mat))
+
+        return useful_probs
+    '''
 
     def __play_or_discard_vector(self, game):
         useful_probs = []
@@ -98,9 +112,10 @@ class AI_Player:
 
         for i in range(len(hand_probability)):
             mat = hand_probability[i] * useless_cards
-            # useless_probs.append(np.sum(mat))
             useless_probs.append(np.sum(mat))
         return useful_probs, useless_probs
+    '''
+
 
     def redeterminize(self, game):
         self.real_hand = self.hand
@@ -120,75 +135,84 @@ class AI_Player:
         best_scores = []
 
         def update_best_actions(action, score):
-            MAX_ACTIONS = 5
-            if len(best_actions) < MAX_ACTIONS:
-                best_scores.append(score)
-                best_actions.append(action)
-            elif len(best_actions) == MAX_ACTIONS:
-                worst_score = min(best_scores)
-                if score > worst_score:
-                    for i in range(MAX_ACTIONS):
-                        if best_scores[i] == worst_score:
-                            best_actions.pop(i)
-                            best_scores.pop(i)
-                            best_actions.append(action)
-                            best_scores.append(score)
-                            break
+            if (len(best_actions) == 0) or (score != 0):
+                MAX_ACTIONS = 8
+                if len(best_actions) < MAX_ACTIONS:
+                    best_scores.append(score)
+                    best_actions.append(action)
+                elif len(best_actions) == MAX_ACTIONS:
+                    worst_score = min(best_scores)
+                    if score > worst_score:
+                        for i in range(MAX_ACTIONS):
+                            if best_scores[i] == worst_score:
+                                best_actions.pop(i)
+                                best_scores.pop(i)
+                                best_actions.append(action)
+                                best_scores.append(score)
+                                break
 
-        useful_prob, useless_prob = self.__play_or_discard_vector(old_game)
-        flag_action = False
+
+        useful_prob = self.__play_vector(old_game)        
         for i in range(len(useful_prob)):
-            if (useful_prob[i]>=0.6) and (old_game.storm_tokens == 0):
-                res = useful_prob[i] #old_game.eval_action(action, useful_prob[i])
-                update_best_actions(Action("play", value=i), res)
-                flag_action = True
-            elif (useful_prob[i]>=0.7) and (old_game.storm_tokens == 1):
-                res = useful_prob[i] #old_game.eval_action(action, useful_prob[i])
-                update_best_actions(Action("play", value=i), res)
-                flag_action = True
-            elif (useful_prob[i]>=0.9) :
-                res = useful_prob[i] #old_game.eval_action(action, useful_prob[i])
-                update_best_actions(Action("play", value=i), res)
-                flag_action = True
 
-        if not flag_action:
-            if old_game.note_tokens > 0:
-                for i in range(len(useless_prob)):
-                    res = useless_prob[i] #old_game.eval_action(action, useless_prob[i])
+            if (useful_prob[i] >= 0.6) and (old_game.storm_tokens == 0):
+                res = useful_prob[i] #old_game.eval_action(action, useful_prob[i])
+                update_best_actions(Action("play", value=i), res)
+            elif (useful_prob[i] >= 0.7) and (old_game.storm_tokens == 1):
+                res = useful_prob[i] #old_game.eval_action(action, useful_prob[i])
+                update_best_actions(Action("play", value=i), res)
+            elif (useful_prob[i] >= 0.9) :
+                res = useful_prob[i] #old_game.eval_action(action, useful_prob[i])
+                update_best_actions(Action("play", value=i), res)
+
+        hand_prob = self.__get_hand_probs(old_game)
+        old_card_value = old_game.get_points()                
+        if old_game.note_tokens > 0:
+            for i in range(len(useful_prob)):
+                if (useful_prob[i] < 0.6) and (old_game.storm_tokens == 0):
+                    new_card_value = old_game.get_points(hand_prob[i])
+                    res = 1 - np.sum(old_card_value - new_card_value) / np.sum((old_card_value))
+                    update_best_actions(Action('discard', value=i), res)
+                elif (useful_prob[i] < 0.65) and (old_game.storm_tokens == 1):
+                    new_card_value = old_game.get_points(hand_prob[i])
+                    res = 1 - np.sum(old_card_value - new_card_value) / np.sum((old_card_value))
+                    update_best_actions(Action('discard', value=i), res)
+                elif (useful_prob[i] < 0.7):
+                    new_card_value = old_game.get_points(hand_prob[i])
+                    res = 1 - np.sum(old_card_value - new_card_value) / np.sum((old_card_value))
                     update_best_actions(Action('discard', value=i), res)
 
-            if old_game.note_tokens < 8:
-                for player in old_game.players:
-                    if player.name == self.name:
-                        continue
-                    useful_prob, _ = player.__play_or_discard_vector(old_game)
-                    confidence = np.max(useful_prob)
-                    hinted_values = []
-                    hinted_colors = []
+        if old_game.note_tokens < 8:
+            for player in old_game.players:
+                if player.name == self.name:
+                    continue
+                useful_prob = player.__play_vector(old_game)
+                confidence = np.max(useful_prob)
+                hinted_values = []
+                hinted_colors = []
 
-                    for card in player.hand:
-                        # if old_game.is_playable(card):
-                            if card.value not in hinted_values:
-                                hinted_values.append(card.value)
-                                new_player = deepcopy(player)
-                                positions = new_player.get_hint_positions('value', card.value)
-                                new_player.hint('value', card.value, positions)
-                                new_useful_prob, _ = new_player.__play_or_discard_vector(old_game)
-                                new_confidence = np.max(new_useful_prob)
-                                action = Action('hint', type='value', value=card.value, dest=player.name)
-                                res = new_confidence - confidence # old_game.eval_action(action, new_confidence - confidence)
-                                update_best_actions(action, res)
-                            if card.color not in hinted_colors:
-                                hinted_colors.append(card.color)
-                                new_player = deepcopy(player)
-                                positions = new_player.get_hint_positions('color', card.color)
-                                new_player.hint('color', card.color, positions)
-                                new_useful_prob, _ = new_player.__play_or_discard_vector(old_game)
-                                new_confidence = np.max(new_useful_prob)
-                                action = Action('hint', type='color', value=card.color, dest=player.name)
-                                res = new_confidence - confidence # old_game.eval_action(action, new_confidence - confidence)
-                                update_best_actions(action, res)
-                                
+                for card in player.hand:
+                    # if old_game.is_playable(card):
+                        if card.value not in hinted_values:
+                            hinted_values.append(card.value)
+                            new_player = deepcopy(player)
+                            positions = new_player.get_hint_positions('value', card.value)
+                            new_player.hint('value', card.value, positions)
+                            new_useful_prob = new_player.__play_vector(old_game)
+                            new_confidence = np.max(new_useful_prob)
+                            action = Action('hint', type='value', value=card.value, dest=player.name)
+                            res = new_confidence - confidence # old_game.eval_action(action, new_confidence - confidence)
+                            update_best_actions(action, res)
+                        if card.color not in hinted_colors:
+                            hinted_colors.append(card.color)
+                            new_player = deepcopy(player)
+                            positions = new_player.get_hint_positions('color', card.color)
+                            new_player.hint('color', card.color, positions)
+                            new_useful_prob = new_player.__play_vector(old_game)
+                            new_confidence = np.max(new_useful_prob)
+                            action = Action('hint', type='color', value=card.color, dest=player.name)
+                            res = new_confidence - confidence # old_game.eval_action(action, new_confidence - confidence)
+                            update_best_actions(action, res)                            
         # Sort best_action based on score
         best_actions = [action for _, action in sorted(zip(best_scores, best_actions), key=lambda tup: tup[0] ,reverse=True)]
         
@@ -197,3 +221,4 @@ class AI_Player:
 
     def action(self, game):
         return self.best_actions(game)[0]
+        

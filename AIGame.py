@@ -24,7 +24,7 @@ class AI_Game:
 
     def play(self, card):
         val, col = get_card_cell(card)
-        next_usefull_cards, _ = self.usefl_cards()
+        next_usefull_cards = self.usefl_cards()
         if next_usefull_cards[val, col] != 1:
             self.discardedMatrix[val, col] += 1
             self.storm_tokens += 1
@@ -35,7 +35,7 @@ class AI_Game:
 
     def is_playable(self, card):
         val, col = get_card_cell(card)
-        next_usefull_cards, _ = self.usefl_cards()
+        next_usefull_cards = self.usefl_cards()
         if next_usefull_cards[val, col] != 1:
             return False
         else:
@@ -61,14 +61,37 @@ class AI_Game:
                 remaining = remaining - player.get_hand_martix()
         return remaining
 
-    def extract_card(self, hint_matrix = None, card_avoided = None, player_request = ""):
+    def get_points(self, probs = None):
+        if probs is None:
+            probs = np.zeros((ut.NUM_VALUES,ut.NUM_COLORS))
+        point_matrix = ut.get_pointMatrix()
+        remaining_cards = (self.startMatrix - self.discardedMatrix - probs) / (self.startMatrix)
+        for col in range(ut.NUM_COLORS):
+            fatt_col = 1.0
+            for val in range(ut.NUM_VALUES):
+                if self.tableMatrix[val][col] == 1:
+                    fatt_col = 1.0
+                    point_matrix[val][col] = 1.0
+                else:
+                    point_matrix[val][col] = fatt_col * remaining_cards[val][col]
+                    if remaining_cards[val][col] > 1 :
+                        fatt_col = point_matrix[val][col] * 1.5
+                    else:
+                        fatt_col = point_matrix[val][col]
+                    if fatt_col > 1:
+                        fatt_col = 1
+        point_matrix[point_matrix > 1] = 1
+        point_matrix[point_matrix < 0] = 0
+        return point_matrix
+
+    def extract_card(self, hint_matrix=None, card_avoided=None, player_request=""):
         remaining_cards = self.remaining_cards(player_request)
         if card_avoided is not None:
             remaining_cards = remaining_cards - card_avoided
         if hint_matrix is not None:
             remaining_cards = remaining_cards * hint_matrix
         remaining_cards = remaining_cards * (remaining_cards > 0)
-        if np.sum(remaining_cards)==0:
+        if np.sum(remaining_cards) == 0:
             return -1, -1
         p = remaining_cards
         p = p / np.sum(p)
@@ -101,28 +124,30 @@ class AI_Game:
         next_usefull = np.sum(self.tableMatrix, axis=0)
         next_usefull_cards = np.zeros((ut.NUM_VALUES, ut.NUM_COLORS), dtype=int)
         # next_useless_cards = - np.ones((ut.NUM_VALUES, ut.NUM_COLORS), dtype=int)
-        point_matrix = ut.get_pointMatrix()
-        rem_cards = self.remaining_cards()
-        useful_points = ((self.startMatrix - rem_cards) / self.startMatrix) * point_matrix
-        next_useless_cards = useful_points / ( 5* np.ones((ut.NUM_VALUES, ut.NUM_COLORS), dtype=int))
 
         for i in range(ut.NUM_COLORS):
             if next_usefull[i] != 5:
                 next_usefull_cards[next_usefull[i]][i] = 1
-                # next_useless_cards[next_usefull[i]][i] = 0
 
-        for i in range(ut.NUM_COLORS):
-            for j in range(next_usefull[i]):
-                next_useless_cards[j][i] = 0
-
-        return next_usefull_cards, - next_useless_cards
+        return next_usefull_cards
 
     def eval(self):
         if self.storm_tokens >= 3:
             return 0
         else:
-            return np.sum(self.tableMatrix)
-
+            next_useless_cards = np.sum(self.get_points())
+            '''
+            # rem_cards = (self.startMatrix - self.tableMatrix - self.discardedMatrix)
+            remainings = (self.startMatrix - 0.5 - self.discardedMatrix) / self.startMatrix
+            for i in range(ut.NUM_VALUES):
+                for j in range(ut.NUM_COLORS):
+                    if self.tableMatrix[i][j]==1:
+                        remainings[i][j] = 1
+            potential_value = np.sum(remainings * self.get_points()) / 5            
+            remainings = np.sum(self.remaining_cards()) / 100.0
+            '''
+            return np.sum(self.tableMatrix) * 2 + next_useless_cards / 5
+            
     def get_player(self, player_name):
         for player in self.players:
             if player.name == player_name:
@@ -221,10 +246,10 @@ class MCTS_Hanabi_Node(State):
             av_actions.append(self.execute_action(action))
         return av_actions
 
-    '''def eval(self):
+    def eval(self):
         return self.game.eval()
-    '''
 
+    '''
     def eval(self):
         new_game = deepcopy(self.game)
         score = 0
@@ -238,6 +263,7 @@ class MCTS_Hanabi_Node(State):
             new_game.execute_action(best_action)
         score = new_game.eval()
         return score
+    '''
 
 
     def execute_action(self,action):
@@ -255,9 +281,9 @@ class MCTS_Hanabi_Node(State):
 
 def MCTS_algo(game, root_player):
     if root_player == game.current_player:
-        # mcts = MCTS(MCTS_Hanabi_Node(None,game,root_player))
-        # return mcts.best_action()
-        return MCTS2(game)
+        mcts = MCTS(MCTS_Hanabi_Node(None,game,root_player))
+        return mcts.best_action()
+        # return MCTS2(game)
     return False
 
 
