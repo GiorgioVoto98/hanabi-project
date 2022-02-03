@@ -78,25 +78,25 @@ of the *acting player* at each node in the tree search (to be distinguished from
 *active player* in the game, who is always the root player in the tree). The re-determinize 
 function shuffles the player’s hand and deck in line with their current information set.
 
-We tried this algorithm with some variations:
+We tried RIS-MCTS algorithm with some variations:
 
 - To limit the branching factor, we used a **custom heuristic** (explained [below](#Custom-Heuristic)) 
-which produce a set of possible good actions.
+which produces a set of possible good actions.
 We found that on average a **branching factor of 7** actions was the best performing. 
 
 - The selection uses the classic UCB (Upper Confidence Bounds) with **C = 0.1** 
 
 - We also didn't simulate an entire game on a terminal node, because a simulation with 
-the custom heuristic policy at every move takes lot of time (and as a consequence, given 
-a time limit, the MCTS algorithm performs less global iterations). We tried also a very fast random policy,
-but that was not accurate enough to be useful.
+the custom heuristic policy at every move takes lot of time (as a consequence, given 
+a time limit the MCTS algorithm performs less global iterations). 
+We tried also a very fast random policy, but that was not accurate enough to be useful.
 To address this problem, we directly produce a **potential score** (from 0 to 50) that evaluate how 
 potentially good the current state will be at the end of the game. 
 The score is then normalized between 0 and 1.
 
 - We did different benchmark from fixed number of MCTS iterations (400) to a time-based MCTS 
-(1 and 2 seconds maximum per move). The average score increase as the time increase as
-expected. Results [here](#Peformance).
+(1 and 2 seconds maximum per move). As expected the average score increases as the time increases. 
+Results [here](#Performance).
 
 
 ### Custom Heuristic
@@ -136,7 +136,7 @@ Depending on the branching factor `BF` we want to use, we select only the top `B
 
 
 
-## Peformance:
+## Performance:
 
 Algorithm | Time | 2 players | 3 players | 4 players | 5 players
 --- | --- | --- | --- | --- |--- 
