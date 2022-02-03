@@ -8,7 +8,7 @@ import time
 from action import Action
 
 
-def MCTS2(game, num_iterations=300, seconds=1):
+def MCTS2(game, num_iterations=400, seconds=1):
     print("CANDIDATES:")
     candidates = game.get_current_player().best_actions(game)
     for c in candidates:
@@ -20,10 +20,10 @@ def MCTS2(game, num_iterations=300, seconds=1):
     if len(root.actions_to_try) == 1:
         return root.actions_to_try[0]
 
-    start_t = time.time()
+    # start_t = time.time()
     iterations = 0
-    while True:
-    # for _ in range(num_iterations):
+    # while True:
+    for _ in range(num_iterations):
         if not root.game.get_current_player().redeterminize(root.game):
             print("weird")
             os._exit(2)
@@ -45,10 +45,10 @@ def MCTS2(game, num_iterations=300, seconds=1):
         # BACKPROPAGATION
         node.backpropagate(score)
 
-        duration = time.time() - start_t
+        # duration = time.time() - start_t
         iterations += 1
-        if duration > seconds:
-            break    
+        # if duration > seconds:
+            # break    
     print("Number of iterations:", iterations)
 
     # Return most promising move from root (highest score)
@@ -56,7 +56,7 @@ def MCTS2(game, num_iterations=300, seconds=1):
 
     print("CHOSEN:", best_node.parent_action.cmd_string())
 
-    stats(root)
+    # stats(root)
 
     return best_node.parent_action
 
@@ -98,7 +98,7 @@ class Hanabi_Node():
     def selection(self):
         def UCB1(node):
             # C = np.sqrt(2)
-            C = 0.1
+            C = 2
             exploitation = node.total_score / node.num_visits
             exploration = C * np.sqrt(np.log(node.parent.num_visits) / node.num_visits)
             return exploitation + exploration
@@ -120,18 +120,19 @@ class Hanabi_Node():
     def simulate(self):
         # return np.random.randint(0, 26)
         # return self.game.eval()
-        
-        # start = time.time()
+
         temp_game = deepcopy(self.game)
-        num_play = 0
-        for _ in range(2):
+
+        # start = time.time()
+        # num_play = 0
+        for _ in range(0):
         # while True:
         # while num_play <= 4:
             end, score = temp_game.is_game_over()
             if end:
                 # end = time.time()
                 # print("Sim time:", end-start)
-                return score / 25
+                return temp_game.eval() / 25
             player = temp_game.get_current_player()
             best_action = player.action(temp_game)
             temp_game.execute_action(best_action)
