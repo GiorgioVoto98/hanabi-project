@@ -75,24 +75,29 @@ consequences for the player receiving the hint.
 They address this problem with a new variant called Re-determinizing IS-MCTS
 (RIS-MCTS). This is done by re-determinizing hidden information from the perspective
 of the *acting player* at each node in the tree search (to be distinguished from the 
-*active player* in the game, who is always the root player in the tree). The re-determinze 
+*active player* in the game, who is always the root player in the tree). The re-determinize 
 shuffles the player’s hand and deck in line with their current information set
 
 We tried this algorithm with some variations:
-- To limit the branching factor we used a **custom heuristic** (explained [below](###Custom-Heuristic)) 
+- To limit the branching factor, we used a **custom heuristic** (explained [below](###Custom-Heuristic)) 
 which produce a set of possible good actions.
 We found that on average a **branching factor of 7** actions was the best performing. 
 
 - The selection uses the classic UCB (Upper Confidence Bounds) with **C = 0.1** 
 
-- We also didn't simulate an entire game on a terminal node, but directly produce a 
-**potential score** (from 0 to 50) that evaluate how potentially good the current state 
-will be at the end of the game. The score is then normalized between 0 and 1. 
+- We also didn't simulate an entire game on a terminal node, because a simulation with 
+the custom heuristic policy at every move takes lot of time (and as a consequence, given 
+a time limit, the MCTS algorithm performs less global iterations). We tried also a very fast
+random policy, but that was not accurate enough to be useful.
+To address this problem, we directly produce a **potential score** (from 0 to 50) that evaluate 
+how potentially good the current state will be at the end of the game. The score is then normalized 
+between 0 and 1.
 
 
 Algorithm | Time | 2 players | 3 players | 4 players | 5 players
 --- | --- | --- | --- | --- |--- 
-Custom RIS-MCTS | 400 iterations | 0 | 0 | 0 | 17.25 
+Custom RIS-MCTS | 400 iterations | 16.55 | 17.4 | 17.8 | 17.25
+Custom RIS-MCTS | 800 iterations | 0 | 0 | 0 | 0 
 
 
 ### Custom Heuristic
@@ -100,7 +105,7 @@ Custom RIS-MCTS | 400 iterations | 0 | 0 | 0 | 17.25
 #### 1. Play
 
 The agent computes the probability of its hand by taking the remaining cards and the hint given from the other players on its cards.
-Based on this probabilities, he can choose to play if 
+Based on these probabilities, he can choose to play if 
 - The game has 3 storm tokens left and the probability of be a good card is greater or equal than 0.6
 - The game has 2 storm tokens left and the probability of be a good card is greater or equal than 0.7
 - The game has 1 storm tokens left and the probability of be a good card is greater or equal than 0.9
@@ -108,7 +113,7 @@ Based on this probabilities, he can choose to play if
 #### 2. Discard
 
 If the card is not played, then the agent check if can be discardable.
-First of all, the agent check the potential value of the state `old_value`, which is the potential final result by considering the current state of the table and the discarded pile.
+First of all, the agent checks the potential value of the state `old_value`, which is the potential final result by considering the current state of the table and the discarded pile.
 
 The player that discards the card and then it evaluates again the potential value of the state `new_value`.
 The probability of discarding a card is the computed as `(old_value - new_value) / old_value`

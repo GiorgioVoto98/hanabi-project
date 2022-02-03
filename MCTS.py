@@ -1,11 +1,13 @@
 import math
+import time
 from copy import deepcopy
 
 
 class MCTS:
-    def __init__(self, state, iterations=400):
+    def __init__(self, state, iterations=400, seconds=1):
         self.startState = state
         self.iterations = iterations
+        self.seconds = seconds
 
     def execute(self, state):
         if state.nexp == 0:
@@ -47,10 +49,17 @@ class MCTS:
         return None
 
     def best_action(self):
-        for _ in range(self.iterations):            
+        start_t = time.time()
+
+        while True:
+        # for _ in range(self.iterations):            
             if not self.startState.game.get_current_player().redeterminize(self.startState.game):
                 break
             self.execute(self.startState)
+
+            duration = time.time() - start_t
+            if duration > self.seconds:
+                break    
         
         best_node = max(self.startState.children, key=lambda x: x.totalVal/x.nexp)
 

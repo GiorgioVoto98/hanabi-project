@@ -161,8 +161,6 @@ class AI_Game:
                 v, c = self.extract_card()
                 if v != -1:
                     current_player.give_card(Card(-1, v + 1, ut.inv_colors[c]))
-                else:
-                    os._exit(3)
                     
         elif action.action == 'discard':
             card = current_player.hand[action.value]
@@ -173,8 +171,6 @@ class AI_Game:
                 v, c = self.extract_card()
                 if v != -1:
                     current_player.give_card(Card(-1, v + 1, ut.inv_colors[c]))
-                else:
-                    os._exit(9)
 
         elif action.action == 'hint':
             self.hint(action.type, action.value, action.dest)
