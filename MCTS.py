@@ -4,9 +4,8 @@ from copy import deepcopy
 
 
 class MCTS:
-    def __init__(self, state, iterations=400, seconds=1):
+    def __init__(self, state, seconds=1):
         self.startState = state
-        self.iterations = iterations
         self.seconds = seconds
 
     def execute(self, state):
