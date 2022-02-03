@@ -76,10 +76,11 @@ They address this problem with a new variant called Re-determinizing IS-MCTS
 (RIS-MCTS). This is done by re-determinizing hidden information from the perspective
 of the *acting player* at each node in the tree search (to be distinguished from the 
 *active player* in the game, who is always the root player in the tree). The re-determinize 
-shuffles the player’s hand and deck in line with their current information set
+function shuffles the player’s hand and deck in line with their current information set.
 
 We tried this algorithm with some variations:
-- To limit the branching factor, we used a **custom heuristic** (explained [below](###Custom-Heuristic)) 
+
+- To limit the branching factor, we used a **custom heuristic** (explained [below](#Custom-Heuristic)) 
 which produce a set of possible good actions.
 We found that on average a **branching factor of 7** actions was the best performing. 
 
@@ -87,17 +88,15 @@ We found that on average a **branching factor of 7** actions was the best perfor
 
 - We also didn't simulate an entire game on a terminal node, because a simulation with 
 the custom heuristic policy at every move takes lot of time (and as a consequence, given 
-a time limit, the MCTS algorithm performs less global iterations). We tried also a very fast
-random policy, but that was not accurate enough to be useful.
-To address this problem, we directly produce a **potential score** (from 0 to 50) that evaluate 
-how potentially good the current state will be at the end of the game. The score is then normalized 
-between 0 and 1.
+a time limit, the MCTS algorithm performs less global iterations). We tried also a very fast random policy,
+but that was not accurate enough to be useful.
+To address this problem, we directly produce a **potential score** (from 0 to 50) that evaluate how 
+potentially good the current state will be at the end of the game. 
+The score is then normalized between 0 and 1.
 
-
-Algorithm | Time | 2 players | 3 players | 4 players | 5 players
---- | --- | --- | --- | --- |--- 
-Custom RIS-MCTS | 400 iterations | 16.55 | 17.4 | 17.8 | 17.25
-Custom RIS-MCTS | 800 iterations | 0 | 0 | 0 | 0 
+- We did different benchmark from fixed number of MCTS iterations (400) to a time-based MCTS 
+(1 and 2 seconds maximum per move). The average score increase as the time increase as
+expected. Results [here](#Peformance).
 
 
 ### Custom Heuristic
@@ -134,4 +133,14 @@ The same procedure is applied to the color hint.
 
 All the possible actions are sorted by decreasing probability. 
 Depending on the branching factor `BF` we want to use, we select only the top `BF` actions. 
+
+
+
+## Peformance:
+
+Algorithm | Time | 2 players | 3 players | 4 players | 5 players
+--- | --- | --- | --- | --- |--- 
+Custom RIS-MCTS | 400 iterations | 16.55 | 17.4 | 17.8 | 17.25
+Custom RIS-MCTS | 1 second | 16.86 | 17.46 | 18.06 | 17.53 |
+Custom RIS-MCTS | 2 seconds | 17.14 | 18.2 | 17.93 | 18.33 |
 
