@@ -18,9 +18,14 @@ class MCTS:
                 self._expand(State)
             # valutare tra quelli presenti quale mi conviene scegliere
             child_chosen = self._choose(State)
-            res = self.execute(child_chosen)
-            State.totalVal += res
-            return res
+            if child_chosen is not None:
+                res = self.execute(child_chosen)
+                State.totalVal += res
+                return res
+            else:
+                res = State.eval()
+                State.totalVal += res
+                return res
 
     def _expand(self, State):
         av_actions = State.available_actions()
@@ -31,14 +36,16 @@ class MCTS:
     def _choose(self, State):
         child_chosen = None
         UCB_chosen = -1
-        for child_state in State.childrens:
-            UCB = 1e6
-            if child_state.nexp != 0:
-                UCB = (child_state.totalVal / child_state.nexp) + 2 * (math.log(State.nexp) / child_state.nexp)
-            if UCB > UCB_chosen:
-                UCB_chosen = UCB
-                child_chosen = child_state
-        return child_chosen
+        if len(State.childrens) > 0:
+            for child_state in State.childrens:
+                UCB = 1e6
+                if child_state.nexp != 0:
+                    UCB = (child_state.totalVal / child_state.nexp) + 2 * (math.log(State.nexp) / child_state.nexp)
+                if UCB > UCB_chosen:
+                    UCB_chosen = UCB
+                    child_chosen = child_state
+            return child_chosen
+        return None
 
     def best_action(self):
         for i in range(self.iterations):            
