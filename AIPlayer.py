@@ -132,7 +132,7 @@ class AI_Player:
 
         def update_best_actions(action, score):
             if (len(best_actions) == 0) or (score != 0):
-                MAX_ACTIONS = 8
+                MAX_ACTIONS = 7
                 if len(best_actions) < MAX_ACTIONS:
                     best_scores.append(score)
                     best_actions.append(action)
