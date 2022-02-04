@@ -16,7 +16,7 @@ from AIPlayer import AI_Player
 import utils as ut
 
 AUTOMATIC = True
-NUM_GAMES = 1
+NUM_GAMES = 300
 
 parser = argparse.ArgumentParser(prog='client.py')
 parser.add_argument('--ip', type=str, default=HOST, help='IP address of the host')
